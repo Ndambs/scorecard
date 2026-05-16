@@ -25,6 +25,10 @@ import { AuthService } from '../../core/services/auth.service';
             @if (auth.isEditor) {
               <a routerLink="/admin/scorecards" class="btn-edit">✏️ Edit Scorecard</a>
             }
+            <button class="btn-download" (click)="downloadPptx()" [disabled]="downloading()">
+              @if (downloading()) { <span>⏳ Generating…</span> }
+              @else { <span>📥 Download Report</span> }
+            </button>
           </div>
         </div>
 
@@ -209,10 +213,16 @@ import { AuthService } from '../../core/services/auth.service';
     .dash-title { font-size: 26px; font-weight: 800; color: #fff; margin: 0 0 6px; }
     .dash-meta { font-size: 13px; color: rgba(255,255,255,.55); display: flex; gap: 6px; flex-wrap: wrap; }
     .sep { opacity: .4; }
+    .dash-actions { display:flex; gap:10px; align-items:center; }
     .btn-edit { padding: 8px 16px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
       color: #fff; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 500;
       transition: background .15s; white-space: nowrap; }
     .btn-edit:hover { background: rgba(255,255,255,.2); }
+    .btn-download { padding: 8px 16px; background: #dc2626; border: 1px solid #dc2626;
+      color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background .15s; white-space: nowrap; }
+    .btn-download:hover:not(:disabled) { background: #b91c1c; }
+    .btn-download:disabled { opacity:.65; cursor:not-allowed; }
 
     /* ─── Tab Bar ─── */
     .tab-bar { display: flex; gap: 2px; padding: 20px 32px 0; overflow-x: auto; }
@@ -368,9 +378,33 @@ export class DashboardComponent implements OnInit {
   scorecards = signal<any[]>([]);
   activeScorecardId = signal<string>('');
   loading = signal(true);
+  downloading = signal(false);
 
   activeScorecard() {
     return this.scorecards().find(s => s.id === this.activeScorecardId()) || null;
+  }
+
+  downloadPptx() {
+    this.downloading.set(true);
+    const url = 'http://localhost:8000/api/export/pptx';
+    const token = localStorage.getItem('uam_token');
+    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(res => {
+        if (!res.ok) throw new Error('Export failed');
+        const cd = res.headers.get('Content-Disposition') || '';
+        const match = cd.match(/filename="?([^"]+)"?/);
+        const filename = match ? match[1] : 'UAM_Scorecard_Report.pptx';
+        return res.blob().then(blob => ({ blob, filename }));
+      })
+      .then(({ blob, filename }) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch(err => console.error('Download error:', err))
+      .finally(() => this.downloading.set(false));
   }
 
   ngOnInit() {

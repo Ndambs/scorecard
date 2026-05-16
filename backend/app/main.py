@@ -16,6 +16,7 @@ from app.api.content import (
     focus_router, timeline_router,
 )
 from app.api.misc import users_router, uploads_router, audit_router
+from app.api.export import router as export_router
 
 
 @asynccontextmanager
@@ -49,7 +50,7 @@ for router in [
     checklist_router, action_router,
     metric_router, insight_router,
     focus_router, timeline_router,
-    users_router, uploads_router, audit_router,
+    users_router, uploads_router, audit_router, export_router,
 ]:
     app.include_router(router)
 
