@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+dist/
+*.db
+*.db-shm
+*.db-wal
+uploads/
+
+# Node / Angular
+node_modules/
+frontend/dist/
+frontend/.angular/
+
+# Environment
+.env
+*.env.local
+
+# Docker
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
