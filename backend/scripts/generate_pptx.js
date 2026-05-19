@@ -16,6 +16,9 @@ const pptxgen = require("pptxgenjs");
 const fs = require("fs");
 const path = require("path");
 
+const ASSETS = path.join(__dirname, "assets");
+const A = (f) => path.join(ASSETS, f);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const NAV  = "1E2761";
@@ -73,64 +76,50 @@ function kpiColor(color) {
 /** Slide 1: Cover */
 function addCoverSlide(pres, sc, generatedAt) {
   const slide = pres.addSlide();
-  slide.background = { color: NAV };
 
-  // Left accent stripe
-  slide.addShape(pres.shapes.RECTANGLE, {
-    x: 0, y: 0, w: 0.55, h: H,
-    fill: { color: CRM }, line: { color: CRM }
-  });
+  // Full-slide branded background (grey left + red swoosh)
+  slide.addImage({ path: A("cover_bg.png"), x: 0, y: -0.057, w: 13.329, h: 7.557 });
 
-  // White card
-  slide.addShape(pres.shapes.RECTANGLE, {
-    x: 0.85, y: 1.05, w: 8.3, h: 3.5,
-    fill: { color: WHT }, line: { color: WHT },
-    shadow: shadow()
-  });
+  // Africa / One Africa colourful map (right side)
+  slide.addImage({ path: A("africa_map.png"), x: 5.539, y: -0.164, w: 6.483, h: 7.828 });
 
-  // Lock icon (text emoji substitute)
-  slide.addText("🔐", {
-    x: 0.9, y: 1.1, w: 0.7, h: 0.7, fontSize: 28, margin: 0
-  });
+  // M-Pesa dual logo — mid-right of cover
+  slide.addImage({ path: A("mpesa_logo.png"), x: 9.308, y: 4.403, w: 2.805, h: 0.81 });
 
-  slide.addText("UAM OPERATIONS", {
-    x: 1.7, y: 1.15, w: 7, h: 0.35,
-    fontSize: 10, bold: true, color: CRM, charSpacing: 4,
+  // "Transforming Lives"
+  slide.addText("Transforming Lives", {
+    x: 0.499, y: 0.75, w: 3.48, h: 0.57,
+    fontSize: 20, bold: true, italic: true, color: "FFFFFF",
     fontFace: "Calibri", margin: 0
   });
 
-  slide.addText(sc.title || "UAM Operations Scorecard", {
-    x: 0.9, y: 1.55, w: 7.9, h: 0.75,
-    fontSize: 30, bold: true, color: NAV, fontFace: "Calibri", margin: 0
+  // "UAM\nMonthly Report" — large white block
+  slide.addText([
+    { text: "UAM", options: { breakLine: true } },
+    { text: sc.title || "Monthly Report" }
+  ], {
+    x: 0.35, y: 2.7, w: 5.5, h: 2.0,
+    fontSize: 36, bold: true, color: "FFFFFF",
+    fontFace: "Calibri", align: "center", margin: 0
   });
 
-  slide.addText(sc.subtitle || "User Access Management Performance Overview", {
-    x: 0.9, y: 2.32, w: 7.9, h: 0.38,
-    fontSize: 14, color: GRY, fontFace: "Calibri", italic: true, margin: 0
+  // Reporting period
+  slide.addText(`Reporting Period: ${sc.period || generatedAt}`, {
+    x: 0.8, y: 6.39, w: 6.4, h: 0.62,
+    fontSize: 16, bold: true, color: "FFFFFF",
+    fontFace: "Calibri", margin: 0
   });
 
-  // Divider
-  slide.addShape(pres.shapes.RECTANGLE, {
-    x: 0.9, y: 2.75, w: 1.4, h: 0.06,
-    fill: { color: CRM }, line: { color: CRM }
+  // "Further together" bottom-right tag
+  slide.addText("Further together", {
+    x: 11.545, y: 7.074, w: 1.7, h: 0.303,
+    fontSize: 7, color: "FFFFFF", fontFace: "Calibri", margin: 0
   });
+}
 
-  slide.addText(`Reporting Period: ${sc.period || "April 2026"}`, {
-    x: 0.9, y: 2.9, w: 5, h: 0.3,
-    fontSize: 12, bold: true, color: DKGR, fontFace: "Calibri", margin: 0
-  });
-
-  slide.addText(`Prepared for Senior Leadership  ·  ${generatedAt}`, {
-    x: 0.9, y: 3.25, w: 7.9, h: 0.28,
-    fontSize: 10, color: GRY, fontFace: "Calibri", margin: 0
-  });
-
-  // Bottom tag
-  slide.addText("CONFIDENTIAL — SENIOR LEADERSHIP", {
-    x: 0.65, y: 5.2, w: 9, h: 0.25,
-    fontSize: 8, color: "CADCFC", align: "center",
-    charSpacing: 2, fontFace: "Calibri", margin: 0
-  });
+/** Add M-Pesa footer to non-cover slides */
+function addMpesaFooter(slide) {
+  slide.addImage({ path: A("mpesa_footer.png"), x: 0, y: 5.32, w: W, h: 0.22 });
 }
 
 /** Slide 2: KPI Summary Cards — 4-up grid */
@@ -664,15 +653,20 @@ async function main() {
   const outPath   = process.argv[3] || "scorecard_report.pptx";
 
   if (!jsonArg) {
-    console.error("Usage: node generate_pptx.js '<json>' <output_path>");
+    console.error("Usage: node generate_pptx.js <json_file_or_string> <output_path>");
     process.exit(1);
   }
 
   let payload;
   try {
-    payload = JSON.parse(jsonArg);
+    // Accept either a file path or raw JSON string
+    if (require("fs").existsSync(jsonArg)) {
+      payload = JSON.parse(require("fs").readFileSync(jsonArg, "utf8"));
+    } else {
+      payload = JSON.parse(jsonArg);
+    }
   } catch (e) {
-    console.error("Invalid JSON:", e.message);
+    console.error("Invalid JSON or file not found:", e.message);
     process.exit(1);
   }
 
@@ -685,7 +679,7 @@ async function main() {
   });
 
   const pres = new pptxgen();
-  pres.layout  = "LAYOUT_16x9";
+  pres.layout  = "LAYOUT_WIDE";
   pres.author  = "UAM Operations";
   pres.title   = `${mainSc.title} – ${mainSc.period}`;
   pres.subject = "Senior Leadership Report";

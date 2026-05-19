@@ -239,3 +239,35 @@ class ScorecardVersion(Base):
     created_at:   Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     scorecard = relationship("Scorecard", back_populates="versions")
+
+
+# ─── WEEKLY REPORT ────────────────────────────────────────────────────────────
+
+class WeeklyReport(Base):
+    __tablename__ = "weekly_reports"
+
+    id:             Mapped[str]      = mapped_column(String, primary_key=True, default=gen_uuid)
+    report_period:  Mapped[str]      = mapped_column(String, nullable=False)    # "11th May to 16th May 2026"
+    week_start:     Mapped[str]      = mapped_column(String, nullable=True)
+    week_end:       Mapped[str]      = mapped_column(String, nullable=True)
+    status:         Mapped[str]      = mapped_column(String, default="draft")   # draft | published
+
+    # Slide 2 – Key Highlights
+    key_highlights: Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+    focus_areas:    Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+    kpi_performance:Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+    sr_closure_status: Mapped[dict]  = mapped_column(JSON, default=list)        # list[str]
+    achievements:   Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+
+    # Slide 3 – KPI Summary
+    srs_closure:    Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+    vf_focus_items: Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+    general_focus_areas: Mapped[dict]= mapped_column(JSON, default=list)        # list[str]
+    q1_user_review: Mapped[dict]     = mapped_column(JSON, default=list)        # list[{label, status}]
+    q4_user_review: Mapped[dict]     = mapped_column(JSON, default=list)        # list[{label, status}]
+    smartapp_hub_focus: Mapped[dict] = mapped_column(JSON, default=list)        # list[str]
+    other_items:    Mapped[dict]     = mapped_column(JSON, default=list)        # list[str]
+
+    created_by:     Mapped[str]      = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at:     Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at:     Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

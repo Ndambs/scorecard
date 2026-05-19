@@ -17,6 +17,7 @@ from app.api.content import (
 )
 from app.api.misc import users_router, uploads_router, audit_router
 from app.api.export import router as export_router
+from app.api.weekly_reports import router as weekly_router, seed_default_weekly_report
 
 
 @asynccontextmanager
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI):
     # Create tables and seed data on startup
     await create_tables()
     await seed_initial_data()
+    from app.database import AsyncSessionLocal as _ASL
+    async with _ASL() as _db:
+        await seed_default_weekly_report(_db)
     yield
 
 
@@ -50,7 +54,7 @@ for router in [
     checklist_router, action_router,
     metric_router, insight_router,
     focus_router, timeline_router,
-    users_router, uploads_router, audit_router, export_router,
+    users_router, uploads_router, audit_router, export_router, weekly_router,
 ]:
     app.include_router(router)
 
