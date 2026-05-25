@@ -261,45 +261,121 @@ function addKpiPerformanceSlide(pres, sc) {
 }
 
 /** Slide 4: 6-Month KPI Trend */
+/**
+ * Slide 4: 6-Month KPI Trend
+ *
+ * Replaced the multi-line chart (hard to read when lines cross) with:
+ *   • A sorted grouped column chart — one cluster per month, one bar per KPI
+ *   • A KPI summary table below showing latest value + trend arrow per KPI
+ *
+ * Months are sorted chronologically (the old version sorted alphabetically
+ * which scrambled Apr → Dec → Feb → Jan → Mar → Nov).
+ */
 function addTrendSlide(pres, sc) {
   const kpisWithHistory = (sc.kpis || []).filter(k => k.history && k.history.length > 1);
   if (!kpisWithHistory.length) return;
 
   const slide = pres.addSlide();
-  slide.background = { color: WHT };
-  addSlideHeader(slide, pres, "6-Month KPI Trend", "Month-on-month performance trajectory");
+  slide.background = { color: LGR };
+  addSlideHeader(slide, pres, "6-Month KPI Trend", "Month-on-month performance — each cluster = one month");
 
-  // Build chart series from KPIs that have history
-  const seriesKpis = kpisWithHistory.slice(0, 3);
-  const allPeriods = seriesKpis[0].history.map(h => h.period);
-  const CHART_COLORS = [EME, BLU, AMB, CRM];
+  // ── Sort history chronologically ─────────────────────────────────────────
+  const MONTH_ORDER = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+  function parsePeriod(p) {
+    const parts = String(p).trim().split(" ");
+    return (parseInt(parts[1] || 0) * 100) + (MONTH_ORDER[parts[0]?.slice(0,3)] || 0);
+  }
 
-  const chartData = seriesKpis.map((kpi, i) => ({
-    name: kpi.label,
-    labels: kpi.history.map(h => h.period),
-    values: kpi.history.map(h => h.value)
-  }));
+  const seriesKpis = kpisWithHistory.slice(0, 4);
+  const KPI_COLORS = [EME, BLU, AMB, CRM];
 
-  slide.addChart(pres.charts.LINE, chartData, {
-    x: 0.35, y: 1.1, w: 9.3, h: 4.1,
-    chartColors: CHART_COLORS,
-    chartArea: { fill: { color: WHT } },
-    catAxisLabelColor: GRY,
+  // Use the first KPI's periods as the master label list (sorted)
+  const sortedHistory = [...seriesKpis[0].history]
+    .sort((a, b) => parsePeriod(a.period) - parsePeriod(b.period));
+  const labels = sortedHistory.map(h => h.period);
+
+  // Build one series per KPI (all using the same sorted label order)
+  const chartData = seriesKpis.map((kpi, i) => {
+    const histMap = {};
+    (kpi.history || []).forEach(h => { histMap[h.period] = Number(h.value); });
+    return {
+      name: kpi.label,
+      labels: labels,
+      values: labels.map(p => histMap[p] ?? 0),
+    };
+  });
+
+  // ── Grouped column chart ─────────────────────────────────────────────────
+  slide.addChart(pres.charts.BAR, chartData, {
+    x: 0.35, y: 1.1, w: W - 0.7, h: 3.55,
+    barDir:    "col",         // vertical columns
+    barGrouping: "clustered", // side-by-side bars per month
+    chartColors: KPI_COLORS,
+    chartArea:   { fill: { color: WHT } },
+    plotArea:    { fill: { color: WHT } },
+    catAxisLabelColor:    DKGR,
     catAxisLabelFontSize: 10,
-    valAxisLabelColor: GRY,
-    valAxisLabelFontSize: 10,
+    catAxisLineShow:      true,
+    valAxisLabelColor:    GRY,
+    valAxisLabelFontSize: 9,
     valAxisMaxVal: 100,
-    valAxisMinVal: 50,
-    valGridLine: { color: "E2E8F0", size: 0.5 },
-    catGridLine: { style: "none" },
-    lineSize: 2.5,
-    lineSmooth: true,
-    showLegend: true,
-    legendPos: "b",
+    valAxisMinVal: 0,
+    valGridLine:   { color: "E2E8F0", size: 0.5 },
+    catGridLine:   { style: "none" },
+    showValue:     true,
+    dataLabelFontSize: 8,
+    dataLabelColor:    DKGR,
+    dataLabelPosition: "outEnd",
+    showLegend:    true,
+    legendPos:     "b",
     legendFontSize: 10,
-    legendColor: DKGR,
-    showValue: false,
-    dataLabelFontSize: 9,
+    legendColor:   DKGR,
+  });
+
+  // ── KPI summary strip (latest value + trend arrow) ───────────────────────
+  const stripY = 4.85;
+  slide.addShape(pres.shapes.RECTANGLE, {
+    x: 0.35, y: stripY, w: W - 0.7, h: 0.65,
+    fill: { color: WHT }, line: { color: "E2E8F0" },
+  });
+
+  const cellW = (W - 0.7) / seriesKpis.length;
+  seriesKpis.forEach((kpi, i) => {
+    const sorted = [...(kpi.history || [])].sort((a,b) => parsePeriod(a.period)-parsePeriod(b.period));
+    const latest = sorted.length ? Number(sorted[sorted.length-1].value) : 0;
+    const prev   = sorted.length > 1 ? Number(sorted[sorted.length-2].value) : latest;
+    const delta  = latest - prev;
+    const arrow  = delta > 0 ? "▲" : delta < 0 ? "▼" : "→";
+    const arrowCol = delta > 0 ? EME : delta < 0 ? CRM : AMB;
+    const cx = 0.35 + i * cellW;
+
+    // Colour accent bar at top of cell
+    slide.addShape(pres.shapes.RECTANGLE, {
+      x: cx, y: stripY, w: cellW, h: 0.05,
+      fill: { color: KPI_COLORS[i] }, line: { color: KPI_COLORS[i] },
+    });
+
+    // KPI label
+    slide.addText(kpi.label, {
+      x: cx + 0.08, y: stripY + 0.07, w: cellW - 0.16, h: 0.22,
+      fontSize: 9, bold: true, color: DKGR, fontFace: "Calibri",
+      align: "center", margin: 0,
+    });
+
+    // Latest value + arrow
+    slide.addText(`${latest}%  ${arrow}`, {
+      x: cx + 0.08, y: stripY + 0.32, w: cellW - 0.16, h: 0.26,
+      fontSize: 12, bold: true, color: arrowCol, fontFace: "Calibri",
+      align: "center", margin: 0,
+    });
+
+    // Divider between cells
+    if (i < seriesKpis.length - 1) {
+      slide.addShape(pres.shapes.LINE, {
+        x: cx + cellW, y: stripY + 0.05, w: 0, h: 0.55,
+        line: { color: "E2E8F0", width: 0.5 },
+      });
+    }
   });
 }
 

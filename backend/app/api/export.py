@@ -9,6 +9,19 @@ from app.database import get_db
 from app.api.auth import require_viewer
 from app.models import User
 
+
+from datetime import datetime as _dt
+_MONTHS = {"Jan":1,"Feb":2,"Mar":3,"Apr":4,"May":5,"Jun":6,
+           "Jul":7,"Aug":8,"Sep":9,"Oct":10,"Nov":11,"Dec":12}
+
+def _parse_period(p: str) -> tuple:
+    """Convert 'Nov 2025' → (2025,11) for chronological sorting."""
+    try:
+        parts = str(p).strip().split()
+        return (int(parts[1]), _MONTHS.get(parts[0][:3], 0))
+    except Exception:
+        return (0, 0)
+
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 _HERE      = os.path.dirname(os.path.abspath(__file__))
@@ -114,7 +127,7 @@ async def _monthly_payload(db) -> dict:
                 "sub_text": k.sub_text, "bar_percent": k.bar_percent,
                 "color": k.color, "trend": k.trend,
                 "history": [{"period": h.period, "value": h.value}
-                             for h in sorted(k.history, key=lambda x: x.period)],
+                             for h in sorted(k.history, key=lambda x: _parse_period(x.period))],
             } for k in sc.kpis],
             "sections": [{
                 "id": s.id, "title": s.title, "section_type": s.section_type,
