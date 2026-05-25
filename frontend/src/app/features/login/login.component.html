@@ -1,0 +1,312 @@
+<div class="login-root">
+
+  <!-- ══════════════════════════════════════
+       LEFT PANEL
+  ══════════════════════════════════════ -->
+  <aside class="panel-left" aria-hidden="true">
+    <canvas id="meshCanvas"></canvas>
+    <div class="left-content">
+
+      <header class="brand">
+        <div class="brand-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M3 18L9 12L13 16L21 7" stroke="white" stroke-width="2.2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="21" cy="7" r="2.5" fill="white" opacity=".7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-wordmark">UAM Scorecard</div>
+          <div class="brand-sub">Identity &amp; Access Intelligence</div>
+        </div>
+      </header>
+
+      <div class="hero-copy">
+        <div class="hero-eyebrow">
+          <span class="eyebrow-dot"></span>
+          UAM Team Reporting &amp; Analytics
+        </div>
+        <h1 class="hero-h">Access control,<br><em>finally elegant.</em></h1>
+        <p class="hero-p">
+          Real-time user access monitoring, compliance scoring, and risk
+          detection, in one unified platform.
+        </p>
+      </div>
+
+      <div class="face-cluster">
+
+        <div class="face-sm pos-tl">
+          <div class="img-wrap">
+            <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces&auto=format"
+                 alt="" loading="lazy"/>
+          </div>
+        </div>
+
+        <div class="face-sm pos-tr">
+          <div class="img-wrap">
+            <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&crop=faces&auto=format"
+                 alt="" loading="lazy"/>
+          </div>
+        </div>
+
+        <div class="face-main">
+          <div class="img-wrap">
+            <img src="https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?w=300&h=300&fit=crop&crop=faces&auto=format"
+                 alt="" loading="lazy"/>
+          </div>
+          <div class="online-tag">
+            <span class="ot-dot"></span>Active · Verified
+          </div>
+        </div>
+
+        <div class="stat-pill pill-left">
+          <div class="pill-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#00c853" stroke-width="1.8"/>
+              <path d="M12 6v6l4 2" stroke="#00c853" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div><div class="pill-num">99.9%</div><div class="pill-lbl">Uptime SLA</div></div>
+        </div>
+
+        <div class="stat-pill pill-right">
+          <div class="pill-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                    stroke="#00c853" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div><div class="pill-num">SOC 2</div><div class="pill-lbl">Certified</div></div>
+        </div>
+
+      </div>
+
+      <div class="social-proof">
+        <div class="stars">★★★★★</div>
+        <blockquote class="quote">
+          "UAM Scorecard transformed how our team handles access reviews and compliance. The intuitive interface and real-time insights have made it easy to identify and remediate risks, and
+          we cut audit time by 70%."
+        </blockquote>
+        <div class="proof-row">
+          <div class="av-stack">
+            <div class="av"><img src="https://images.unsplash.com/photo-1506277886164-e25aa3f4ef7f?w=56&h=56&fit=crop&crop=faces&auto=format" alt=""/></div>
+            <div class="av"><img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=56&h=56&fit=crop&crop=faces&auto=format" alt=""/></div>
+            <div class="av"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=56&h=56&fit=crop&crop=faces&auto=format" alt=""/></div>
+            <div class="av-more">+</div>
+          </div>
+          <span class="proof-meta">User Access Management Team Reporting &amp; Analytics Tool </span>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════
+       RIGHT PANEL
+  ══════════════════════════════════════ -->
+  <main class="panel-right" role="main">
+    <div class="form-shell">
+
+      <header class="form-header">
+        <div class="fh-eyebrow"><span class="fh-line"></span>Secure Access</div>
+        <h2 class="fh-h">Sign <em>in</em></h2>
+        <p class="fh-p">Enter your credentials to access your dashboard</p>
+      </header>
+
+      <!-- Security / strength indicator -->
+      <div
+        class="sec-indicator"
+        [class.si-strong]="securityState === 'strong'"
+        [class.si-weak]="securityState === 'weak'"
+      >
+        <div class="si-icon-wrap">
+          <svg *ngIf="securityState === 'idle'" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg *ngIf="securityState === 'strong'" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg *ngIf="securityState === 'weak'" width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 9v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="si-body">
+          <div class="si-title">
+            <ng-container *ngIf="securityState === 'idle'">Secure Login Portal</ng-container>
+            <ng-container *ngIf="securityState === 'strong'">Password looks strong ✓</ng-container>
+            <ng-container *ngIf="securityState === 'weak'">Password needs more requirements</ng-container>
+          </div>
+          <div class="si-sub">
+            <ng-container *ngIf="securityState === 'idle'">Only provisioned accounts can access this system</ng-container>
+            <ng-container *ngIf="securityState === 'strong'">All requirements satisfied — ready to sign in</ng-container>
+            <ng-container *ngIf="securityState === 'weak'">{{ 5 - score }} requirement{{ (5 - score) !== 1 ? 's' : '' }} remaining</ng-container>
+          </div>
+        </div>
+        <div class="si-dots" *ngIf="securityState !== 'idle'">
+          <span class="si-dot" [class.on]="score >= 1"></span>
+          <span class="si-dot" [class.on]="score >= 2"></span>
+          <span class="si-dot" [class.on]="score >= 3"></span>
+          <span class="si-dot" [class.on]="score >= 4"></span>
+          <span class="si-dot" [class.on]="score >= 5"></span>
+        </div>
+      </div>
+
+      <!-- Error banner -->
+      <div class="err-banner" *ngIf="loginError" role="alert" aria-live="assertive">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        {{ loginError }}
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate autocomplete="on">
+
+        <!-- Email -->
+        <div class="field" [class.ok]="emailOk" [class.err]="emailErr">
+          <label class="f-label" for="email">Email address</label>
+          <div class="f-wrap">
+            <span class="f-ico" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="1.8"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
+            <input
+              id="email" type="email" class="f-input" formControlName="email"
+              placeholder="you@company.com" autocomplete="email"
+              [attr.aria-invalid]="emailErr" aria-describedby="email-err"
+            />
+            <span class="f-badge" [class.show]="emailOk || emailErr" aria-hidden="true">
+              <svg *ngIf="emailOk"  class="ico-ok"  width="10" height="10" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <svg *ngIf="emailErr" class="ico-err" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </div>
+          <p class="f-msg" id="email-err" role="alert" *ngIf="emailErr">
+            <ng-container *ngIf="email.errors?.['required']">Email is required</ng-container>
+            <ng-container *ngIf="email.errors?.['email']">Enter a valid email address</ng-container>
+          </p>
+        </div>
+
+        <!-- Password -->
+        <div class="field"
+          [class.ok]="allMet && password.touched"
+          [class.err]="!allMet && password.touched && !pwFocused && !!password.value"
+        >
+          <label class="f-label" for="password">
+            Password
+            <a href="/forgot-password" class="forgot-link" tabindex="-1">Forgot?</a>
+          </label>
+          <div class="f-wrap">
+            <span class="f-ico" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input
+              id="password"
+              [type]="showPassword ? 'text' : 'password'"
+              class="f-input"
+              formControlName="password"
+              placeholder="Minimum 8 characters"
+              autocomplete="current-password"
+              (focus)="onPwFocus()"
+              (blur)="onPwBlur()"
+              [attr.aria-invalid]="!allMet && password.touched"
+              aria-describedby="pw-reqs"
+            />
+            <div class="f-trail">
+              <span class="f-badge" [class.show]="pwTouched && !!password.value" aria-hidden="true">
+                <svg *ngIf="allMet"                                     class="ico-ok"  width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg *ngIf="!allMet && pwTouched && !!password.value"  class="ico-err" width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <button type="button" class="eye-btn" (click)="togglePw()"
+                      [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+                <svg *ngIf="!showPassword" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="1.8"/>
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                </svg>
+                <svg *ngIf="showPassword" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"
+                        stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Strength bar -->
+          <div class="str-row" [class.show]="pwTouched && !!password.value">
+            <div class="str-bars">
+              <div class="str-bar" *ngFor="let i of [1,2,3,4,5]">
+                <div class="str-fill"
+                     [class.on]="score >= i"
+                     [ngClass]="score >= i ? 'sc-' + strengthClass : ''">
+                </div>
+              </div>
+            </div>
+            <span class="str-word" [ngClass]="'sw-' + strengthClass">{{ strengthLabel }}</span>
+          </div>
+
+          <!-- Requirements list -->
+          <ul id="pw-reqs" class="req-list"
+              [class.show]="pwFocused || (pwTouched && !allMet && !!password.value)"
+              role="list" aria-label="Password requirements">
+            <li *ngFor="let r of requirements"
+                class="req-item" [class.met]="r.met"
+                [attr.aria-label]="r.label + (r.met ? ' — met' : ' — not met')">
+              <span class="req-ico" aria-hidden="true">
+                <svg *ngIf="r.met"  width="9" height="9" viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <svg *ngIf="!r.met" width="9" height="9" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5"/>
+                </svg>
+              </span>
+              {{ r.label }}
+            </li>
+          </ul>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="submit-btn"
+                [class.loading]="isLoading"
+                [disabled]="!canSubmit"
+                aria-label="Sign in">
+          <span class="btn-txt" *ngIf="!isLoading">
+            Sign in
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="btn-spin" *ngIf="isLoading" aria-label="Signing in…">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </span>
+        </button>
+
+      </form>
+
+      <footer class="form-footer">
+        <p class="footer-note">Protected by JWT · Role-based access control · SOC 2 Certified</p>
+      </footer>
+
+    </div>
+  </main>
+
+</div>

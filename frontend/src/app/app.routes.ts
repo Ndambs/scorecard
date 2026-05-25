@@ -37,5 +37,10 @@ export const routes: Routes = [
       }
     ]
   },
+  {
+    path: 'weekly-report',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/weekly-report/weekly-report.component').then(m => m.WeeklyReportComponent)
+  },
   { path: '**', redirectTo: '/dashboard' }
 ];

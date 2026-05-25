@@ -20,6 +20,9 @@ import { AuthService } from './core/services/auth.service';
             <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
               <span class="ni">📊</span> Dashboard
             </a>
+            <a routerLink="/weekly-report" routerLinkActive="active" class="nav-item">
+              <span class="ni">📅</span> Weekly Report
+            </a>
             @if (auth.isEditor) {
               <a routerLink="/admin/scorecards" routerLinkActive="active" class="nav-item">
                 <span class="ni">✏️</span> Edit Scorecards

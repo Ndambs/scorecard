@@ -1,163 +1,241 @@
-import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
-import { ApiService } from '../../core/services/api.service';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+} from '@angular/core';
+import { CommonModule }      from '@angular/common';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
+import { Router }             from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
+import { finalize }           from 'rxjs/operators';
+import { AuthService }        from '../../core/services/auth.service';
+
+export type SecurityState = 'idle' | 'weak' | 'strong';
+
+interface Requirement {
+  label : string;
+  test  : (v: string) => boolean;
+  met   : boolean;
+}
 
 @Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <div class="login-page">
-      <div class="login-left">
-        <div class="login-brand">
-          <div class="brand-logo">🔐</div>
-          <h1>UAM Scorecard<br><span>Operations Platform</span></h1>
-          <p>User Access Management · Performance · Compliance</p>
-        </div>
-        <div class="login-stats">
-          <div class="stat-pill">📊 5 Scorecard Modules</div>
-          <div class="stat-pill">🔑 Access Review Tracking</div>
-          <div class="stat-pill">📈 Real-time KPI Trends</div>
-          <div class="stat-pill">✅ Compliance Dashboard</div>
-        </div>
-      </div>
-
-      <div class="login-right">
-        <div class="login-card">
-          <div class="login-header">
-            <h2>Sign in</h2>
-            <p>Enter your credentials to access the platform</p>
-          </div>
-
-          @if (firstRun()) {
-            <div class="first-run-banner">
-              <strong>🎉 First-time setup</strong><br>
-              No users found. Register the first admin account below.
-            </div>
-            <div class="form-group">
-              <label>Full Name</label>
-              <input type="text" [(ngModel)]="name" placeholder="Your name" class="form-input" />
-            </div>
-          }
-
-          <div class="form-group">
-            <label>Email address</label>
-            <input type="email" [(ngModel)]="email" placeholder="admin@uam.local"
-              class="form-input" (keyup.enter)="submit()" />
-          </div>
-
-          <div class="form-group">
-            <label>Password</label>
-            <input type="password" [(ngModel)]="password" placeholder="••••••••"
-              class="form-input" (keyup.enter)="submit()" />
-          </div>
-
-          @if (error()) {
-            <div class="error-msg">{{ error() }}</div>
-          }
-
-          <button class="btn-login" (click)="submit()" [disabled]="loading()">
-            @if (loading()) { <span>Signing in…</span> }
-            @else { <span>{{ firstRun() ? 'Create Admin & Sign in' : 'Sign in' }}</span> }
-          </button>
-
-          <div class="login-hint">
-            <strong>Default accounts:</strong><br>
-            admin&#64;uam.local / admin123 &nbsp;|&nbsp; editor&#64;uam.local / editor123
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .login-page { display:flex; min-height:100vh; font-family: system-ui, -apple-system, sans-serif; }
-    .login-left {
-      flex: 1; background: linear-gradient(135deg, #1a1f2e 0%, #2d1b1b 60%, #7f1d1d 100%);
-      display:flex; flex-direction:column; justify-content:center; padding: 60px 48px;
-    }
-    .brand-logo { font-size: 52px; margin-bottom: 20px; }
-    .login-brand h1 { color:#fff; font-size:32px; font-weight:800; line-height:1.2; margin:0 0 12px; }
-    .login-brand h1 span { color: rgba(255,255,255,.55); font-weight:400; font-size:24px; }
-    .login-brand p { color: rgba(255,255,255,.5); font-size:14px; margin:0 0 40px; }
-    .login-stats { display:flex; flex-direction:column; gap:10px; }
-    .stat-pill { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
-      color:rgba(255,255,255,.8); padding:10px 16px; border-radius:8px; font-size:13px; font-weight:500; }
-    .login-right { width:440px; display:flex; align-items:center; justify-content:center;
-      padding:40px; background:#fff; }
-    .login-card { width:100%; max-width:380px; }
-    .login-header { margin-bottom:28px; }
-    .login-header h2 { font-size:26px; font-weight:800; color:#111; margin:0 0 6px; }
-    .login-header p { color:#6b7280; font-size:14px; margin:0; }
-    .first-run-banner { background:#fef3c7; border:1px solid #f59e0b; border-radius:8px;
-      padding:12px 14px; font-size:13px; color:#92400e; margin-bottom:16px; line-height:1.5; }
-    .form-group { margin-bottom:18px; }
-    .form-group label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; }
-    .form-input { width:100%; padding:10px 12px; border:1.5px solid #e5e7eb; border-radius:8px;
-      font-size:14px; outline:none; box-sizing:border-box; transition:border-color .15s; }
-    .form-input:focus { border-color:#dc2626; }
-    .error-msg { background:#fef2f2; border:1px solid #fecaca; color:#dc2626;
-      padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:14px; }
-    .btn-login { width:100%; padding:12px; background:#dc2626; color:#fff; border:none;
-      border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; transition:background .15s; }
-    .btn-login:hover:not(:disabled) { background:#b91c1c; }
-    .btn-login:disabled { opacity:.6; cursor:not-allowed; }
-    .login-hint { margin-top:20px; font-size:12px; color:#9ca3af; background:#f9fafb;
-      padding:12px; border-radius:8px; line-height:1.6; }
-  `]
+  selector   : 'app-login',
+  standalone : true,
+  imports    : [CommonModule, ReactiveFormsModule],
+  templateUrl: './login.component.html',
+  styleUrls  : ['./login.component.scss'],
 })
-export class LoginComponent {
-  private auth = inject(AuthService);
-  private api = inject(ApiService);
-  private router = inject(Router);
+export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
-  email = '';  password = '';  name = '';
-  loading = signal(false);
-  error = signal('');
-  firstRun = signal(false);
+  private destroy$  = new Subject<void>();
+  private animFrame = 0;
 
-  constructor() {
-    // Check if this is first run (no users)
-    this.api.getScorecards().subscribe({
-      error: (err) => {
-        if (err.status === 401) {
-          // API running but auth needed - check for first user
-          this.checkFirstRun();
+  form!        : FormGroup;
+  isLoading    = false;
+  showPassword = false;
+  loginError   = '';
+  pwFocused    = false;
+  pwTouched    = false;
+
+  requirements: Requirement[] = [
+    { label: 'At least 8 characters',  test: v => v.length >= 8,          met: false },
+    { label: 'One uppercase letter',   test: v => /[A-Z]/.test(v),        met: false },
+    { label: 'One lowercase letter',   test: v => /[a-z]/.test(v),        met: false },
+    { label: 'One number',             test: v => /[0-9]/.test(v),        met: false },
+    { label: 'One special character',  test: v => /[^A-Za-z0-9]/.test(v), met: false },
+  ];
+
+  // ── Accessors ─────────────────────────────────────────────────────────────
+
+  get email()    { return this.form.get('email')!;    }
+  get password() { return this.form.get('password')!; }
+
+  get emailOk()  { return this.email.valid   && this.email.touched; }
+  get emailErr() { return this.email.invalid && this.email.touched; }
+
+  get score()  { return this.requirements.filter(r => r.met).length; }
+  get allMet() { return this.score === 5; }
+
+  get strengthLabel(): string {
+    if (!this.pwTouched || !this.password.value) return '';
+    const s = this.score;
+    if (s <= 2) return 'Weak';
+    if (s <= 3) return 'Fair';
+    if (s <= 4) return 'Good';
+    return 'Strong';
+  }
+
+  get strengthClass(): string {
+    const s = this.score;
+    if (s <= 2) return 'weak';
+    if (s <= 3) return 'fair';
+    if (s <= 4) return 'good';
+    return 'strong';
+  }
+
+  get securityState(): SecurityState {
+    if (!this.pwTouched || !this.password.value) return 'idle';
+    return this.allMet ? 'strong' : 'weak';
+  }
+
+  get canSubmit(): boolean {
+    return this.email.valid && this.allMet && !this.isLoading;
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  constructor(
+    private fb    : FormBuilder,
+    private router: Router,
+    private auth  : AuthService,
+  ) {}
+
+  ngOnInit(): void {
+    this.form = this.fb.group({
+      email   : ['', [Validators.required, Validators.email]],
+      password: ['', [Validators.required]],
+    });
+
+    this.password.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((v: string) => this.evaluatePw(v ?? ''));
+  }
+
+  ngAfterViewInit(): void {
+    this.initMeshCanvas();
+  }
+
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.animFrame);
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  onPwFocus(): void { this.pwFocused = true; this.pwTouched = true; }
+
+  onPwBlur(): void {
+    this.pwFocused = false;
+    this.password.markAsTouched();
+  }
+
+  togglePw(): void { this.showPassword = !this.showPassword; }
+
+  onSubmit(): void {
+    this.form.markAllAsTouched();
+    this.pwTouched = true;
+    this.evaluatePw(this.password.value ?? '');
+    if (!this.canSubmit) return;
+
+    this.loginError = '';
+    this.isLoading  = true;
+
+    this.auth
+      .login(this.email.value.trim().toLowerCase(), this.password.value)
+      .pipe(
+        finalize(() => (this.isLoading = false)),
+        takeUntil(this.destroy$),
+      )
+      .subscribe({
+        next: () => this.router.navigate(['/dashboard']),
+        error: (err) => {
+          // ── Always clear the password field on any auth failure ──────────
+          // This prevents stale passwords sitting in the field
+          this.password.reset('');
+          this.pwTouched    = false;
+          this.showPassword = false;
+          this.evaluatePw('');
+
+          const status = err?.status;
+          if (status === 401 || status === 403) {
+            this.loginError = 'Invalid email or password. Please check your credentials.';
+          } else if (status === 404) {
+            this.loginError = 'No account found with that email. Contact your administrator.';
+          } else if (status === 422) {
+            this.loginError = 'Please check the format of your email address.';
+          } else if (status === 429) {
+            this.loginError = 'Too many attempts. Please wait a moment and try again.';
+          } else if (!status || status >= 500) {
+            this.loginError = 'Unable to reach the server. Please check your connection.';
+          } else {
+            this.loginError =
+              err?.error?.detail ??
+              err?.error?.message ??
+              'Sign-in failed. Please try again.';
+          }
+        },
+      });
+  }
+
+  // ── Canvas mesh ───────────────────────────────────────────────────────────
+
+  private initMeshCanvas(): void {
+    const canvas = document.getElementById('meshCanvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let W = 0, H = 0;
+    let pts: { x:number; y:number; vx:number; vy:number; r:number; hue:number }[] = [];
+
+    const resize = () => {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+      pts = Array.from({ length: 55 }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.55, vy: (Math.random() - 0.5) * 0.55,
+        r: Math.random() * 2.5 + 1, hue: 130 + Math.random() * 40,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 130) {
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.strokeStyle = `rgba(0,200,83,${(1 - d / 130) * 0.35})`;
+            ctx.lineWidth = 0.7;
+            ctx.stroke();
+          }
         }
       }
-    });
+      const t = Date.now() / 1000;
+      [[W * .3, H * .4, 180], [W * .7, H * .7, 120], [W * .5, H * .2, 100]].forEach(([ox, oy, or_]) => {
+        const pulse = 0.05 + Math.abs(Math.sin(t * .8)) * 0.07;
+        const r = or_ + Math.sin(t) * 20;
+        const g = ctx.createRadialGradient(ox, oy, 0, ox, oy, r);
+        g.addColorStop(0, `rgba(0,200,83,${pulse})`);
+        g.addColorStop(1, 'rgba(0,200,83,0)');
+        ctx.beginPath(); ctx.arc(ox, oy, r, 0, Math.PI * 2);
+        ctx.fillStyle = g; ctx.fill();
+      });
+      pts.forEach(p => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${p.hue},65%,50%)`; ctx.fill();
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+      });
+      this.animFrame = requestAnimationFrame(draw);
+    };
+
+    new ResizeObserver(resize).observe(canvas.parentElement!);
+    resize(); draw();
   }
 
-  checkFirstRun() {
-    // Try login; if 401 with no users we'd need to register
-    // The /register endpoint tells us if DB is empty
-  }
-
-  submit() {
-    this.error.set('');
-    if (!this.email || !this.password) {
-      this.error.set('Please enter your email and password.');
-      return;
-    }
-    this.loading.set(true);
-
-    if (this.firstRun()) {
-      this.api.register({ email: this.email, password: this.password, name: this.name, role: 'admin' })
-        .subscribe({
-          next: () => this.doLogin(),
-          error: (e) => { this.loading.set(false); this.error.set(e.error?.detail || 'Registration failed.'); }
-        });
-    } else {
-      this.doLogin();
-    }
-  }
-
-  doLogin() {
-    this.auth.login(this.email, this.password).subscribe({
-      next: () => { this.loading.set(false); this.router.navigate(['/dashboard']); },
-      error: (e) => { this.loading.set(false); this.error.set(e.error?.detail || 'Invalid credentials.'); }
-    });
+  private evaluatePw(value: string): void {
+    this.requirements = this.requirements.map(r => ({
+      ...r, met: value ? r.test(value) : false,
+    }));
   }
 }

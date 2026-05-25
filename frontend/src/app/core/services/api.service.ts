@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -166,5 +166,25 @@ export class ApiService {
   getAuditLog(entityType?: string): Observable<any[]> {
     const params = entityType ? `?entity_type=${entityType}` : '';
     return this.http.get<any[]>(`${this.base}/audit${params}`);
+  }
+
+  // Weekly Reports
+  getWeeklyReports(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.base}/weekly-reports`);
+  }
+  getLatestWeeklyReport(): Observable<any> {
+    return this.http.get<any>(`${this.base}/weekly-reports/latest`);
+  }
+  getWeeklyReport(id: string): Observable<any> {
+    return this.http.get<any>(`${this.base}/weekly-reports/${id}`);
+  }
+  createWeeklyReport(data: any): Observable<any> {
+    return this.http.post(`${this.base}/weekly-reports`, data);
+  }
+  updateWeeklyReport(id: string, data: any): Observable<any> {
+    return this.http.patch(`${this.base}/weekly-reports/${id}`, data);
+  }
+  deleteWeeklyReport(id: string): Observable<any> {
+    return this.http.delete(`${this.base}/weekly-reports/${id}`);
   }
 }
