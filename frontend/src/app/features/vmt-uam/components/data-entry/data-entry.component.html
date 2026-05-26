@@ -45,7 +45,7 @@
       </div>
     </div>
 
-    <p class="section-label">Queue totals — VG VMT-UAM OPS-APPL CON</p>
+    <p class="section-label">Queue totals - VG VMT-UAM OPS-APPL CON</p>
     <div class="card">
       <div class="form-grid grid-4">
         <div class="form-row"><label class="label">Logged tickets *</label><input class="input" type="number" min="0" formControlName="q_logged"></div>
@@ -66,7 +66,7 @@
     <ng-container formArrayName="members">
       <div class="card" *ngFor="let m of members; let i = index" [formGroupName]="i">
         <div class="card-title">
-          <div class="avatar">{{ m.agent_name[0] }}{{ m.agent_name.split(' ')[1]?.[0] }}</div>
+          <div class="avatar">{{ m.agent_name[0] }}{{ (m.agent_name.split(' ')[1] || '')[0] || '' }}</div>
           {{ m.agent_name }}
         </div>
         <div class="form-grid grid-4">

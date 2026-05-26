@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-weekly-report',
@@ -463,7 +464,7 @@ export class WeeklyReportComponent implements OnInit {
 
   dlWeekly() {
     const r = this.report();
-    this._dl(`http://localhost:8000/api/export/weekly-pptx${r?'?report_id='+r.id:''}`, 'UAM_Weekly_Report.pptx', this.dlgW);
+    this._dl(`${environment.apiUrl}/export/weekly-pptx${r?'?report_id='+r.id:''}`, 'UAM_Weekly_Report.pptx', this.dlgW);
   }
-  dlMfw() { this._dl('http://localhost:8000/api/export/monthly-from-weekly', 'UAM_Monthly_Report.pptx', this.dlgM); }
+  dlMfw() { this._dl(`${environment.apiUrl}/export/monthly-from-weekly`, 'UAM_Monthly_Report.pptx', this.dlgM); }
 }

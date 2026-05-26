@@ -1,18 +1,26 @@
 """
 backend/app/services/pdf_parser.py
 MI Weekly Report PDF Parser — VG VMT-UAM OPS-APPL CON
-Requires:  pip install pdfplumber
+Requires:  pdfplumber (listed in requirements.txt)
 """
 
 from __future__ import annotations
+import io
+import logging
 import re
+import warnings
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from typing import Optional
-import pdfplumber
+
+# Suppress pdfplumber's noisy FontBBox warnings from Power BI PDFs
+logging.getLogger("pdfplumber").setLevel(logging.ERROR)
+warnings.filterwarnings("ignore", message=".*FontBBox.*")
+
+import pdfplumber  # noqa: E402  (import after suppressing warnings)
 
 
-# ── Known team members (used to zero-fill anyone absent from the report) ──
+# ── Known team members (zero-filled for anyone absent from the report) ─────────
 TEAM_MEMBERS = [
     {"agent_id": "benson",   "agent_name": "Benson Ndambiri"},
     {"agent_id": "malcolm",  "agent_name": "Malcolm Ondicho"},
@@ -20,12 +28,12 @@ TEAM_MEMBERS = [
     {"agent_id": "felistus", "agent_name": "Felistus Mugi"},
 ]
 
-# Map names as they appear in the PDF → agent_id
+# Map names as they appear in the PDF → agent_id (lowercase)
 NAME_MAP = {
-    "benson ndambiri":   "benson",
-    "malcolm ondicho":   "malcolm",
-    "lebogang mafane":   "lebogang",
-    "felistus mugi":     "felistus",
+    "benson ndambiri":  "benson",
+    "malcolm ondicho":  "malcolm",
+    "lebogang mafane":  "lebogang",
+    "felistus mugi":    "felistus",
 }
 
 QUEUE_LABEL = "VG VMT-UAM OPS-APPL CON"
@@ -63,7 +71,7 @@ class ParsedReport:
     warnings:        list[str] = field(default_factory=list)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
 def _ints(text: str) -> list[int]:
     """Extract all integers from a string."""
@@ -78,7 +86,7 @@ def _float_pct(text: str) -> float:
 
 def _strip_icons(line: str) -> str:
     """Remove Power BI icon / bullet Unicode characters."""
-    return re.sub(r'[\uf164\uf166\ue115\ue116\ue117]', '', line).strip()
+    return re.sub(r'[\uf164\uf166\ue115\ue116\ue117\u25a0\u25cf\u25e6]', '', line).strip()
 
 
 def _parse_period(text: str) -> tuple[Optional[date], Optional[date]]:
@@ -87,8 +95,8 @@ def _parse_period(text: str) -> tuple[Optional[date], Optional[date]]:
     into (date(2026,5,4), date(2026,5,10)).
     """
     MONTHS = {
-        'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,
-        'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12,
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5,  'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
     }
     pattern = re.compile(
         r'(\d{1,2})(?:st|nd|rd|th)?\s*[-–]\s*(\d{1,2})(?:st|nd|rd|th)?\s+'
@@ -113,16 +121,11 @@ def _member_slot(members: dict[str, MemberData], raw_name: str) -> Optional[Memb
     return members.get(agent_id) if agent_id else None
 
 
-# ── Page parsers ──────────────────────────────────────────────────────────────
-
-def _parse_period_page(text: str) -> tuple[Optional[date], Optional[date]]:
-    return _parse_period(text)
-
+# ── Page parsers ───────────────────────────────────────────────────────────────
 
 def _parse_queue_totals(text: str) -> Optional[dict]:
     """
-    Find the row:
-    VG VMT-UAM OPS-APPL CON 17 2 0 0 2 4 29 5 0 34 86%
+    Find the row for VG VMT-UAM OPS-APPL CON in the MI Calculation page.
     Columns: Logged | OpenSLA | OpenBreach | OpenBlank | Pending |
              TotalOpen | ClosedSLA | ClosedBreach | ClosedBlank | TotalClosed | SLARate%
     """
@@ -147,31 +150,40 @@ def _parse_queue_totals(text: str) -> Optional[dict]:
     return None
 
 
+# Queue section terminators — any queue label that is NOT ours
+_OTHER_QUEUE_PATTERNS = re.compile(
+    r'OPS-(?:APPL|GH|TZ|ZA|MZ|VFCD|IT|QA|INFRA|INSIGHT|OS)|'
+    r'BUSINESS ANALYSTS|Security Patching|GSD ITSM|SPV-',
+    re.IGNORECASE,
+)
+
+
+def _is_section_end(line: str) -> bool:
+    """Return True if this line starts a different queue's block."""
+    if QUEUE_LABEL in line:
+        return False
+    return bool(_OTHER_QUEUE_PATTERNS.search(line)) or line.strip().lower().startswith("total")
+
+
 def _parse_open_members(text: str, members: dict[str, MemberData]) -> None:
     """
-    Open Summary page — format after queue header:
-      <blank line with 3 nums for unassigned>
+    Open Summary page — inside the VG VMT-UAM block:
       AgentName  blank  in_sla  breached
+    Columns: Blanks | Within Service Target | SLA Breached
     """
     lines = [_strip_icons(l) for l in text.splitlines()]
     in_queue = False
-    for i, line in enumerate(lines):
+    for line in lines:
         if QUEUE_LABEL in line:
             in_queue = True
             continue
         if not in_queue:
             continue
-        # End of queue block
-        if line.startswith("Total") or (line and any(
-            q in line for q in ["OPS-APPL", "OPS-GH", "OPS-TZ", "OPS-ZA",
-                                 "OPS-MZ", "OPS-VFCD", "OPS-IT", "BUSINESS ANALYSTS",
-                                 "Security Patching", "GSD ITSM"]
-            ) and QUEUE_LABEL not in line):
+        if _is_section_end(line):
             break
         nums = _ints(line)
         if not nums:
             continue
-        # Is this a named agent line?
         name_part = re.sub(r'[\d\s]+$', '', line).strip()
         slot = _member_slot(members, name_part)
         if slot and len(nums) >= 3:
@@ -182,9 +194,8 @@ def _parse_open_members(text: str, members: dict[str, MemberData]) -> None:
 
 def _parse_closed_members(text: str, members: dict[str, MemberData]) -> None:
     """
-    Closed Summary page — format after queue header:
-      <blank line with 4 nums for unassigned: blank in_sla breached total>
-      AgentName  blank  in_sla  breached  total
+    Closed Summary page — inside the VG VMT-UAM block:
+      AgentName  closed_blank  closed_sla  closed_breach  total
     """
     lines = [_strip_icons(l) for l in text.splitlines()]
     in_queue = False
@@ -194,11 +205,7 @@ def _parse_closed_members(text: str, members: dict[str, MemberData]) -> None:
             continue
         if not in_queue:
             continue
-        if line.startswith("Total") or (line and any(
-            q in line for q in ["OPS-APPL", "OPS-GH", "OPS-TZ", "OPS-ZA",
-                                 "OPS-MZ", "OPS-VFCD", "OPS-IT", "BUSINESS ANALYSTS",
-                                 "Security Patching", "GSD ITSM"]
-            ) and QUEUE_LABEL not in line):
+        if _is_section_end(line):
             break
         nums = _ints(line)
         if not nums:
@@ -213,23 +220,25 @@ def _parse_closed_members(text: str, members: dict[str, MemberData]) -> None:
 
 def _parse_pending_members(text: str, members: dict[str, MemberData]) -> None:
     """
-    Pending Summary page — two-column layout, find the second column block:
+    Pending Summary page — find the VG VMT-UAM block (right column).
+    Format:
       VG VMT-UAM OPS-APPL CON  2
-      AgentName  2
+      AgentName  N
     """
     lines = [_strip_icons(l) for l in text.splitlines()]
+    found_first = False
     in_queue = False
     for line in lines:
-        # The right-column block is the reliable one (line 46 in probe)
-        if QUEUE_LABEL in line and in_queue:
-            # already found once, skip the first occurrence (left col summary)
-            continue
         if QUEUE_LABEL in line:
+            if not found_first:
+                # Skip the first occurrence (left-column summary total)
+                found_first = True
+                continue
             in_queue = True
             continue
         if not in_queue:
             continue
-        if line.startswith("Total"):
+        if line.strip().lower().startswith("total"):
             break
         nums = _ints(line)
         if not nums:
@@ -240,35 +249,36 @@ def _parse_pending_members(text: str, members: dict[str, MemberData]) -> None:
             slot.pending = nums[0]
 
 
-# ── Main entry point ──────────────────────────────────────────────────────────
+# ── Main entry point ───────────────────────────────────────────────────────────
 
 def parse_mi_report(pdf_bytes: bytes) -> ParsedReport:
     """
     Parse an MI Weekly Report PDF and return structured VMT-UAM data.
-    Raises ValueError if the file cannot be parsed.
+    Raises ValueError with a descriptive message if the file cannot be parsed.
     """
-    import io
-
     result = ParsedReport(period_start=None, period_end=None)
 
-    # Initialise member slots for all 4 known agents
+    # Initialise member slots for all known agents
     members: dict[str, MemberData] = {
-        t["agent_id"]: MemberData(
-            agent_id=t["agent_id"],
-            agent_name=t["agent_name"],
-        )
+        t["agent_id"]: MemberData(agent_id=t["agent_id"], agent_name=t["agent_name"])
         for t in TEAM_MEMBERS
     }
 
-    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-        pages = [p.extract_text() or "" for p in pdf.pages]
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            pages = [p.extract_text() or "" for p in pdf.pages]
+    except Exception as exc:
+        raise ValueError(f"Could not open PDF: {exc}") from exc
 
-    # ── Period (page 1) ────────────────────────────────────────────────
-    result.period_start, result.period_end = _parse_period_page(pages[0])
+    if not pages:
+        raise ValueError("PDF appears to be empty — no pages found.")
+
+    # ── Period (page 1) ─────────────────────────────────────────────────
+    result.period_start, result.period_end = _parse_period(pages[0])
     if not result.period_start:
         result.warnings.append("Could not parse report period from page 1.")
 
-    # ── Queue totals (page 3 — MI Calculation) ─────────────────────────
+    # ── Queue totals (page 3 — MI Calculation) ──────────────────────────
     totals = _parse_queue_totals(pages[2]) if len(pages) > 2 else None
     if totals:
         for k, v in totals.items():
@@ -276,20 +286,26 @@ def parse_mi_report(pdf_bytes: bytes) -> ParsedReport:
     else:
         result.warnings.append(
             f"'{QUEUE_LABEL}' row not found on page 3 (MI Calculation). "
-            "Check that the PDF matches the expected MI report format."
+            "Verify this PDF matches the expected MI weekly report format."
         )
 
-    # ── Open member data (page 5 — Open Summary) ──────────────────────
+    # ── Open member data (page 5 — Open Summary) ────────────────────────
     if len(pages) > 4:
         _parse_open_members(pages[4], members)
+    else:
+        result.warnings.append("Open Summary page (p.5) not found.")
 
-    # ── Closed member data (page 6 — Closed Summary) ──────────────────
+    # ── Closed member data (page 6 — Closed Summary) ────────────────────
     if len(pages) > 5:
         _parse_closed_members(pages[5], members)
+    else:
+        result.warnings.append("Closed Summary page (p.6) not found.")
 
-    # ── Pending member data (page 7 — Pending Summary) ────────────────
+    # ── Pending member data (page 7 — Pending Summary) ──────────────────
     if len(pages) > 6:
         _parse_pending_members(pages[6], members)
+    else:
+        result.warnings.append("Pending Summary page (p.7) not found.")
 
     result.members = list(members.values())
     return result

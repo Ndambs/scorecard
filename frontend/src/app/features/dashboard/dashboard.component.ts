@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/services/api.service';
 import { AuthService } from '../../core/services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -324,9 +325,9 @@ export class DashboardComponent implements OnInit {
       .finally(() => flag.set(false));
   }
 
-  downloadWeekly()           { this._dl('http://localhost:8000/api/export/weekly-pptx',          'UAM_Weekly_Report.pptx',  this.dlWeekly);  }
-  downloadMonthly()          { this._dl('http://localhost:8000/api/export/pptx',                  'UAM_Monthly_Report.pptx', this.dlMonthly); }
-  downloadMonthlyFromWeekly(){ this._dl('http://localhost:8000/api/export/monthly-from-weekly',   'UAM_Monthly_From_Weekly.pptx', this.dlMfw); }
+  downloadWeekly()           { this._dl(`${environment.apiUrl}/export/weekly-pptx`,          'UAM_Weekly_Report.pptx',  this.dlWeekly);  }
+  downloadMonthly()          { this._dl(`${environment.apiUrl}/export/pptx`,                  'UAM_Monthly_Report.pptx', this.dlMonthly); }
+  downloadMonthlyFromWeekly(){ this._dl(`${environment.apiUrl}/export/monthly-from-weekly`,   'UAM_Monthly_From_Weekly.pptx', this.dlMfw); }
 
   sparklinePoints(history: any[]): string {
     if (!history || history.length < 2) return '';

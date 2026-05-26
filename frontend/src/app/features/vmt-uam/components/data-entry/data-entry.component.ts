@@ -108,7 +108,14 @@ export class DataEntryComponent implements OnInit {
     this.showAlert('info', `Reading ${file.name}…`);
     this.api.parsePdf(file).subscribe({
       next: r => { this.uploading = false; this.applyParsed(r); },
-      error: err => { this.uploading = false; this.showAlert('danger', `PDF parsing failed: ${err.error?.detail ?? 'Unknown error'}`); },
+      error: err => {
+        this.uploading = false;
+        const detail = err.error?.detail
+          ?? err.error?.message
+          ?? (typeof err.error === 'string' ? err.error : null)
+          ?? `HTTP ${err.status} – check that the backend is running on port 8000`;
+        this.showAlert('danger', `PDF parsing failed: ${detail}`);
+      },
     });
   }
 

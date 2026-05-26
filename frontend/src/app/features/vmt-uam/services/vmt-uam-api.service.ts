@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { VmtReport, AnalyticsSummary, GeneratedReport } from '../models/vmt-uam.models';
+import { environment } from '../../../../environments/environment';
 
 export interface ParsedPdfResult {
   period_start:    string | null;
@@ -27,7 +28,7 @@ export interface ParsedPdfResult {
 
 @Injectable({ providedIn: 'root' })
 export class VmtUamApiService {
-  private base = '/api/vmt-uam';
+  private base = `${environment.apiUrl}/vmt-uam`;
   constructor(private http: HttpClient) {}
 
   parsePdf(file: File): Observable<ParsedPdfResult> {
