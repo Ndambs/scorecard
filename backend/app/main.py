@@ -18,7 +18,7 @@ from app.api.content import (
 from app.api.misc import users_router, uploads_router, audit_router
 from app.api.export import router as export_router
 from app.api.weekly_reports import router as weekly_router, seed_default_weekly_report
-
+from app.api.vmt_uam import router as vmt_uam_router 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -54,7 +54,7 @@ for router in [
     checklist_router, action_router,
     metric_router, insight_router,
     focus_router, timeline_router,
-    users_router, uploads_router, audit_router, export_router, weekly_router,
+    users_router, uploads_router, audit_router, export_router, weekly_router,vmt_uam_router,
 ]:
     app.include_router(router)
 
@@ -86,11 +86,11 @@ async def seed_initial_data():
         from app.services.auth_service import hash_password
 
         admin = User(id=nid(), email="admin@uam.local", name="UAM Admin",
-                     role="admin", password_hash=hash_password("admin123"))
+                     role="admin", password_hash=hash_password("Admin@1234!"))
         editor = User(id=nid(), email="editor@uam.local", name="UAM Editor",
-                      role="editor", password_hash=hash_password("editor123"))
+                      role="editor", password_hash=hash_password("Editor@1234!"))
         viewer = User(id=nid(), email="viewer@uam.local", name="UAM Viewer",
-                      role="viewer", password_hash=hash_password("viewer123"))
+                      role="viewer", password_hash=hash_password("Viewer@1234!"))
         db.add_all([admin, editor, viewer])
         await db.flush()
 
