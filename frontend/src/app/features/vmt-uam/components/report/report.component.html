@@ -1,0 +1,112 @@
+<!-- frontend/src/app/features/vmt-uam/components/report/report.component.html -->
+<div class="vmt-page">
+
+  <div class="vmt-page-header">
+    <div>
+      <div class="vmt-page-eyebrow">VG VMT-UAM OPS-APPL CON</div>
+      <h1 class="vmt-page-title">Weekly Report</h1>
+    </div>
+    <div class="vmt-tag-row" *ngIf="!generating">
+      <button class="vmt-btn vmt-btn--primary" (click)="generate()">Regenerate</button>
+      <button class="vmt-btn" (click)="print()">Print / Export</button>
+    </div>
+  </div>
+
+  <div *ngIf="loading || generating" class="vmt-loading">
+    {{ loading ? 'Loading report data…' : 'Generating report…' }}
+  </div>
+  <div *ngIf="error" class="vmt-alert vmt-alert--danger">{{ error }}</div>
+
+  <!-- ── Printable report ─────────────────────────────────────────── -->
+  <div id="printable-report" *ngIf="generated && latestReport && !generating">
+
+    <!-- Report header -->
+    <div class="vmt-report-header">
+      <div>
+        <div class="vmt-report-meta">MI Weekly Report · VG VMT-UAM OPS-APPL CON</div>
+        <div class="vmt-report-period">{{ generated.period_label }}</div>
+      </div>
+      <div class="vmt-report-badges">
+        <span class="vmt-badge vmt-badge--{{ healthClass() }}">
+          {{ generated.health_label }} ({{ generated.health_score | number:'1.0-0' }}/100)
+        </span>
+        <span class="vmt-badge"
+          [class.vmt-badge--green]="latestReport.q_sla_rate >= 90"
+          [class.vmt-badge--amber]="latestReport.q_sla_rate >= 75 && latestReport.q_sla_rate < 90"
+          [class.vmt-badge--red]="latestReport.q_sla_rate < 75">
+          SLA {{ latestReport.q_sla_rate }}%
+        </span>
+      </div>
+    </div>
+
+    <!-- Summary KPI strip -->
+    <div class="vmt-report-kpi-strip">
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.q_logged }}</div>
+        <div class="vmt-report-kpi__lbl">Logged</div>
+      </div>
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.q_total_closed }}</div>
+        <div class="vmt-report-kpi__lbl">Closed</div>
+      </div>
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.q_total_open }}</div>
+        <div class="vmt-report-kpi__lbl">Open</div>
+      </div>
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.q_pending }}</div>
+        <div class="vmt-report-kpi__lbl">Pending</div>
+      </div>
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.q_closed_breach }}</div>
+        <div class="vmt-report-kpi__lbl">Breached</div>
+      </div>
+      <div class="vmt-report-kpi">
+        <div class="vmt-report-kpi__val">{{ latestReport.resolution_efficiency | number:'1.0-0' }}%</div>
+        <div class="vmt-report-kpi__lbl">Resolution eff.</div>
+      </div>
+    </div>
+
+    <!-- Report body sections -->
+    <div class="vmt-report-body">
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">Executive Summary</h3>
+        <p class="vmt-report-section__body">{{ generated.executive_summary }}</p>
+      </div>
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">Ticket Volume &amp; Throughput</h3>
+        <p class="vmt-report-section__body">{{ generated.volume_analysis }}</p>
+      </div>
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">SLA Performance</h3>
+        <p class="vmt-report-section__body">{{ generated.sla_analysis }}</p>
+      </div>
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">Member Activity</h3>
+        <p class="vmt-report-section__body" style="white-space: pre-line">{{ generated.member_activity }}</p>
+      </div>
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">Open Backlog &amp; Risk</h3>
+        <p class="vmt-report-section__body">{{ generated.backlog_risk }}</p>
+      </div>
+
+      <div class="vmt-report-section">
+        <h3 class="vmt-report-section__title">Recommendations</h3>
+        <ol class="vmt-report-recs">
+          <li *ngFor="let rec of generated.recommendations">{{ rec }}</li>
+        </ol>
+      </div>
+
+    </div><!-- /report body -->
+
+    <div class="vmt-report-footer">
+      Generated automatically · VG VMT-UAM OPS-APPL CON · Scorecard System
+    </div>
+
+  </div><!-- /printable-report -->
+</div>

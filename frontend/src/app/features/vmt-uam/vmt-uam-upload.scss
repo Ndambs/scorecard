@@ -1,0 +1,77 @@
+/**
+ * ADD THESE RULES to the bottom of:
+ * frontend/src/app/features/vmt-uam/vmt-uam.scss
+ *
+ * They style the PDF upload card and the divider.
+ */
+
+// ── PDF upload card ───────────────────────────────────────────────────────────
+.vmt-upload-card {
+  border: 1.5px dashed var(--vmt-color-info, #185FA5);
+  background: #EEF5FC;
+  padding: 1.25rem;
+
+  &__body {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &__icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    flex: 1;
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  &__sub {
+    font-size: 12px;
+    color: var(--vmt-color-text-secondary, #5F5E5A);
+  }
+
+  &__btn {
+    flex-shrink: 0;
+  }
+}
+
+.vmt-drop-zone {
+  margin-top: 10px;
+  border: 1px dashed #B0C9E4;
+  border-radius: var(--vmt-radius-md, 8px);
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--vmt-color-text-secondary, #5F5E5A);
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(24, 95, 165, 0.05);
+  }
+}
+
+// ── "or enter manually" divider ───────────────────────────────────────────────
+.vmt-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 1.25rem 0;
+  color: var(--vmt-color-text-secondary, #5F5E5A);
+  font-size: 12px;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 0.5px;
+    background: var(--vmt-border, #E4E2D8);
+  }
+}

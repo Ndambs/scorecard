@@ -1,0 +1,95 @@
+<div class="vmt-page">
+  <div class="vmt-header">
+    <div>
+      <div class="vmt-eyebrow">VG VMT-UAM OPS-APPL CON</div>
+      <h1 class="vmt-title">Data Entry</h1>
+    </div>
+    <div style="display:flex;gap:6px">
+      <span class="tag tag-blue" *ngIf="editingId">Editing #{{ editingId }}</span>
+      <span class="tag tag-gray" *ngIf="!editingId">New report</span>
+    </div>
+  </div>
+
+  <div *ngIf="alert" class="alert alert-{{ alert.type }}">{{ alert.text }}</div>
+
+  <!-- PDF Upload -->
+  <div class="card upload-card">
+    <div class="upload-body">
+      <div class="upload-icon">📄</div>
+      <div>
+        <div class="upload-text-title">Upload MI Report PDF</div>
+        <div class="upload-text-sub">All fields fill automatically from the weekly MI report PDF.</div>
+      </div>
+      <button type="button" class="btn btn-primary" style="margin-left:auto;flex-shrink:0"
+              [disabled]="uploading" (click)="triggerPdf()">
+        {{ uploading ? 'Reading PDF…' : 'Choose PDF' }}
+      </button>
+    </div>
+    <input #pdfInput type="file" accept=".pdf" style="display:none" (change)="onPdfSelected($event)">
+    <div class="drop-zone" (dragover)="$event.preventDefault()"
+         (drop)="$event.preventDefault(); uploadPdf($event.dataTransfer!.files[0])">
+      or drag &amp; drop the PDF here
+    </div>
+  </div>
+
+  <div class="divider"><span>or enter data manually</span></div>
+
+  <form [formGroup]="form" autocomplete="off">
+
+    <p class="section-label">Report period</p>
+    <div class="card">
+      <div class="form-grid grid-3">
+        <div class="form-row"><label class="label">Period start *</label><input class="input" type="date" formControlName="period_start"></div>
+        <div class="form-row"><label class="label">Period end *</label><input class="input" type="date" formControlName="period_end"></div>
+        <div class="form-row"><label class="label">Notes</label><input class="input" type="text" formControlName="notes" placeholder="Optional…"></div>
+      </div>
+    </div>
+
+    <p class="section-label">Queue totals — VG VMT-UAM OPS-APPL CON</p>
+    <div class="card">
+      <div class="form-grid grid-4">
+        <div class="form-row"><label class="label">Logged tickets *</label><input class="input" type="number" min="0" formControlName="q_logged"></div>
+        <div class="form-row"><label class="label">Open in SLA</label><input class="input" type="number" min="0" formControlName="q_open_sla"></div>
+        <div class="form-row"><label class="label">Open SLA breached</label><input class="input" type="number" min="0" formControlName="q_open_breach"></div>
+        <div class="form-row"><label class="label">Open blanks</label><input class="input" type="number" min="0" formControlName="q_open_blank"></div>
+        <div class="form-row"><label class="label">Pending</label><input class="input" type="number" min="0" formControlName="q_pending"></div>
+        <div class="form-row"><label class="label">Total open</label><input class="input" type="number" min="0" formControlName="q_total_open"></div>
+        <div class="form-row"><label class="label">Closed in SLA</label><input class="input" type="number" min="0" formControlName="q_closed_sla"></div>
+        <div class="form-row"><label class="label">Closed SLA breached</label><input class="input" type="number" min="0" formControlName="q_closed_breach"></div>
+        <div class="form-row"><label class="label">Closed blanks</label><input class="input" type="number" min="0" formControlName="q_closed_blank"></div>
+        <div class="form-row"><label class="label">Total closed</label><input class="input" type="number" min="0" formControlName="q_total_closed"></div>
+        <div class="form-row"><label class="label">SLA clear-up %</label><input class="input" type="number" min="0" max="100" formControlName="q_sla_rate"></div>
+      </div>
+    </div>
+
+    <p class="section-label">Member data</p>
+    <ng-container formArrayName="members">
+      <div class="card" *ngFor="let m of members; let i = index" [formGroupName]="i">
+        <div class="card-title">
+          <div class="avatar">{{ m.agent_name[0] }}{{ m.agent_name.split(' ')[1]?.[0] }}</div>
+          {{ m.agent_name }}
+        </div>
+        <div class="form-grid grid-4">
+          <div class="form-row"><label class="label">Open in SLA</label><input class="input" type="number" min="0" formControlName="open_sla"></div>
+          <div class="form-row"><label class="label">Open SLA breached</label><input class="input" type="number" min="0" formControlName="open_breach"></div>
+          <div class="form-row"><label class="label">Open blanks</label><input class="input" type="number" min="0" formControlName="open_blank"></div>
+          <div class="form-row"><label class="label">Pending</label><input class="input" type="number" min="0" formControlName="pending"></div>
+          <div class="form-row"><label class="label">Closed in SLA</label><input class="input" type="number" min="0" formControlName="closed_sla"></div>
+          <div class="form-row"><label class="label">Closed SLA breached</label><input class="input" type="number" min="0" formControlName="closed_breach"></div>
+          <div class="form-row"><label class="label">Closed blanks</label><input class="input" type="number" min="0" formControlName="closed_blank"></div>
+        </div>
+      </div>
+    </ng-container>
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" (click)="saveReport()" [disabled]="saving">
+        {{ saving ? 'Saving…' : (editingId ? 'Update report' : 'Save report') }}
+      </button>
+      <button type="button" class="btn btn-secondary" (click)="saveAs()">Save as new</button>
+      <button type="button" class="btn" (click)="copyPrevious()">Copy previous</button>
+      <button type="button" class="btn" (click)="publishReport()">Publish</button>
+      <button type="button" class="btn btn-ghost" (click)="clearForm()">Clear</button>
+    </div>
+
+  </form>
+</div>

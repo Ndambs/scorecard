@@ -42,5 +42,10 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/weekly-report/weekly-report.component').then(m => m.WeeklyReportComponent)
   },
+  {
+    path: 'vmt-uam',
+    canActivate: [authGuard],
+    loadChildren: () => import('./features/vmt-uam/vmt-uam.routes').then(m => m.VMT_UAM_ROUTES)
+  },
   { path: '**', redirectTo: '/dashboard' }
 ];

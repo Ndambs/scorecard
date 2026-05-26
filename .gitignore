@@ -28,3 +28,4 @@ frontend/.angular/
 .vscode/
 *.swp
 .DS_Store
+README.md

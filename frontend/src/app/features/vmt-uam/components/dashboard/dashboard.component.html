@@ -1,0 +1,102 @@
+<div class="vmt-page">
+  <div class="vmt-header">
+    <div>
+      <div class="vmt-eyebrow">Queue Reporting System</div>
+      <h1 class="vmt-title">VG VMT-UAM OPS-APPL CON</h1>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span class="vmt-tag tag-blue">OPS-APPL CON</span>
+      <span class="vmt-tag tag-gray" *ngIf="report">
+        {{ report.period_start | date:'dd MMM yyyy' }} – {{ report.period_end | date:'dd MMM yyyy' }}
+      </span>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading">Loading VMT-UAM dashboard…</div>
+  <div *ngIf="error"   class="alert alert-danger">{{ error }}</div>
+
+  <ng-container *ngIf="!loading && report">
+
+    <p class="section-label">Queue summary</p>
+    <div class="kpi-grid">
+      <div class="kpi" [class]="kpi.cls" *ngFor="let kpi of kpis">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-value">{{ kpi.value }}</div>
+        <div class="kpi-sub">{{ kpi.sub }}</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Operational metrics</div>
+        <div *ngFor="let m of opMetrics" class="metric-row">
+          <div class="metric-label">{{ m.label }}</div>
+          <div class="metric-right">
+            <div class="bar-wrap"><div class="bar" [class]="m.cls" [style.width.%]="m.bar"></div></div>
+            <span class="metric-val">{{ m.value }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" *ngIf="analytics">
+        <div class="card-title">12-week trend</div>
+        <div class="metric-row">
+          <div class="metric-label">Average SLA rate</div>
+          <span class="metric-val">{{ analytics.avg_sla_rate | number:'1.0-1' }}%</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Average resolution efficiency</div>
+          <span class="metric-val">{{ analytics.avg_resolution_efficiency | number:'1.0-1' }}%</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Weeks at or above 90% target</div>
+          <span class="metric-val">{{ analytics.sla_target_met_count }} / {{ analytics.total_reports }}</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Best SLA week</div>
+          <span class="metric-val">{{ analytics.best_sla_week | date:'dd MMM' }}</span>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Worst SLA week</div>
+          <span class="metric-val">{{ analytics.worst_sla_week | date:'dd MMM' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-label">Member breakdown</p>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>Open in SLA</th><th>SLA breached</th><th>Pending</th>
+            <th>Closed in SLA</th><th>Closed breached</th><th>Total closed</th>
+            <th>Agent SLA %</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of memberRows">
+            <td>
+              <div class="member-cell">
+                <div class="avatar">{{ m.agent_name[0] }}{{ m.agent_name.split(' ')[1]?.[0] }}</div>
+                {{ m.agent_name }}
+              </div>
+            </td>
+            <td>{{ m.open_sla }}</td>
+            <td [class.text-danger]="m.open_breach > 0">{{ m.open_breach }}</td>
+            <td>{{ m.pending }}</td>
+            <td>{{ m.closed_sla }}</td>
+            <td [class.text-danger]="m.closed_breach > 0">{{ m.closed_breach }}</td>
+            <td><strong>{{ m.totalClosed }}</strong></td>
+            <td>{{ (m.agent_sla_rate ?? 0) | number:'1.0-0' }}%</td>
+            <td><span class="badge" [class]="m.badgeCls">{{ m.badge }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="section-label">Automated insights</p>
+    <div *ngFor="let ins of insights" class="insight" [class]="ins.cls">{{ ins.text }}</div>
+
+  </ng-container>
+</div>
