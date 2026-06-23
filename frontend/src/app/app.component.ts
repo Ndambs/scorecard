@@ -29,9 +29,6 @@ import { AuthService } from './core/services/auth.service';
               <a routerLink="/admin/scorecards" routerLinkActive="active" class="nav-item">
                 <span class="ni">✏️</span> Edit Scorecards
               </a>
-              <a routerLink="/admin/uploads" routerLinkActive="active" class="nav-item">
-                <span class="ni">📁</span> File Uploads
-              </a>
             }
 
             <div class="nav-label" style="margin-top:12px">VMT-UAM</div>

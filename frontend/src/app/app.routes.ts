@@ -27,10 +27,6 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/user-manager/user-manager.component').then(m => m.UserManagerComponent)
       },
       {
-        path: 'uploads',
-        loadComponent: () => import('./features/admin/upload-manager/upload-manager.component').then(m => m.UploadManagerComponent)
-      },
-      {
         path: 'audit',
         canActivate: [adminGuard],
         loadComponent: () => import('./features/admin/audit-log/audit-log.component').then(m => m.AuditLogComponent)

@@ -64,6 +64,24 @@ export class VmtUamApiService {
     return this.http.post<VmtReport>(`${this.base}/reports/${id}/publish`, {});
   }
 
+  deleteReport(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/reports/${id}`);
+  }
+
+  clearReports(startDate?: string, endDate?: string): Observable<{ deleted: number }> {
+    let params = new HttpParams().set('confirm', 'true');
+    if (startDate) params = params.set('start_date', startDate);
+    if (endDate)   params = params.set('end_date', endDate);
+    return this.http.delete<{ deleted: number }>(`${this.base}/reports`, { params });
+  }
+
+  exportExcel(startDate?: string, endDate?: string): Observable<Blob> {
+    let params = new HttpParams();
+    if (startDate) params = params.set('start_date', startDate);
+    if (endDate)   params = params.set('end_date', endDate);
+    return this.http.get(`${this.base}/export/excel`, { params, responseType: 'blob' });
+  }
+
   generateReport(id: number): Observable<GeneratedReport> {
     return this.http.get<GeneratedReport>(`${this.base}/reports/${id}/generate`);
   }
