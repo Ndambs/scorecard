@@ -370,12 +370,86 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 
 # ─── AUDIT LOG ────────────────────────────────────────────────────────────────
 
-async def list_audit_logs(db: AsyncSession, entity_type: str = None, limit: int = 100):
-    q = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+async def list_audit_logs(
+    db: AsyncSession,
+    entity_type: str = None,
+    limit: int = 100,
+    start_date=None,
+    end_date=None,
+):
+    q = select(AuditLog).order_by(AuditLog.created_at.desc())
     if entity_type:
         q = q.where(AuditLog.entity_type == entity_type)
+    if start_date:
+        q = q.where(AuditLog.created_at >= start_date)
+    if end_date:
+        q = q.where(AuditLog.created_at <= end_date)
+    q = q.limit(limit)
     r = await db.execute(q)
     return r.scalars().all()
+
+
+async def list_audit_log_types(db: AsyncSession) -> list[str]:
+    """Distinct entity_type values currently present in the audit log —
+    used to populate the component-type filter/export dropdown."""
+    r = await db.execute(
+        select(AuditLog.entity_type).distinct().order_by(AuditLog.entity_type)
+    )
+    return [row[0] for row in r.all()]
+
+
+async def delete_audit_logs(
+    db: AsyncSession,
+    entity_type: str = None,
+    start_date=None,
+    end_date=None,
+) -> int:
+    """Bulk-delete audit log entries, optionally scoped to a component type
+    and/or date range. Returns the number of rows deleted."""
+    q = select(AuditLog)
+    if entity_type:
+        q = q.where(AuditLog.entity_type == entity_type)
+    if start_date:
+        q = q.where(AuditLog.created_at >= start_date)
+    if end_date:
+        q = q.where(AuditLog.created_at <= end_date)
+    r = await db.execute(q)
+    rows = r.scalars().all()
+    for row in rows:
+        await db.delete(row)
+    await db.commit()
+    return len(rows)
+
+
+def build_audit_log_excel(logs: list[AuditLog]) -> bytes:
+    """Builds a single-sheet .xlsx export of audit log entries."""
+    import io
+    import pandas as pd
+
+    rows = [{
+        "Time": log.created_at,
+        "Component type": log.entity_type,
+        "Action": log.action,
+        "Entity ID": log.entity_id,
+        "User ID": log.user_id,
+        "Old value": json.dumps(log.old_value) if log.old_value is not None else "",
+        "New value": json.dumps(log.new_value) if log.new_value is not None else "",
+    } for log in logs]
+
+    df = pd.DataFrame(rows) if rows else pd.DataFrame(
+        columns=["Time", "Component type", "Action", "Entity ID", "User ID", "Old value", "New value"]
+    )
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Audit Log")
+        ws = writer.sheets["Audit Log"]
+        widths = {"A": 20, "B": 16, "C": 12, "D": 24, "E": 24, "F": 40, "G": 40}
+        for col, width in widths.items():
+            ws.column_dimensions[col].width = width
+
+    buf.seek(0)
+    return buf.read()
 
 
 # ─── VERSIONS ─────────────────────────────────────────────────────────────────

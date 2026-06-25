@@ -155,7 +155,7 @@ async def seed_initial_data():
             ("Request SLA maintained above 90%",          90, "green", "met"),
             ("Pending access requests tracked & resolved", 70, "amber", "active"),
             ("User review completion monitored",           75, "blue",  "active"),
-            ("Support responsiveness — Vodafone",          85, "green", "met"),
+            ("Support responsiveness - Vodafone",          85, "green", "met"),
         ]):
             db.add(MetricRow(id=nid(), section_id=s_kpi_perf_id, label=label,
                              bar_percent=pct, bar_color=color, status=status, sort_order=i))
@@ -279,7 +279,7 @@ async def seed_initial_data():
                        section_type="insight", icon="🔍", accent_color="amber", display_order=1))
         for i, (heading, body, color) in enumerate([
             ("Q1 Progress", "78% of Q1 reviews completed as of April 2026. Engineering and Finance teams leading completion rates.", "blue"),
-            ("Critical Gaps", "IT Security team at 45% completion — highest risk for Q2 audit. Immediate escalation required.", "crimson"),
+            ("Critical Gaps", "IT Security team at 45% completion - highest risk for Q2 audit. Immediate escalation required.", "crimson"),
             ("Recommendation", "Schedule dedicated review sessions for IT Security and Market Operations before end of May 2026.", "amber"),
         ]):
             db.add(InsightBlock(id=nid(), section_id=s_ar_insight_id,
@@ -310,7 +310,7 @@ async def seed_initial_data():
         for i, (action, owner, owner_color, status) in enumerate([
             ("VF VOGA portal access not restored after password reset", "UAM Team",   "blue",  "in_progress"),
             ("GitHub enterprise access blocked for new joiner batch",   "IT Ops",     "green", "in_progress"),
-            ("SmartApp login failure — 3 affected users",               "App Support","amber", "at_risk"),
+            ("SmartApp login failure - 3 affected users",               "App Support","amber", "at_risk"),
             ("Bulk access request Q1 cleanup pending sign-off",         "UAM Admin",  "red",   "in_progress"),
         ]):
             db.add(ActionItem(id=nid(), section_id=s_sr2_id, action_text=action,

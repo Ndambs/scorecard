@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from datetime import datetime
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.database import get_db
@@ -134,7 +137,60 @@ audit_router = APIRouter(prefix="/api/audit", tags=["audit"])
 async def list_audit(
     entity_type: str = None,
     limit: int = 100,
+    start_date: Optional[datetime] = Query(None, description="Filter: created_at >= this timestamp"),
+    end_date:   Optional[datetime] = Query(None, description="Filter: created_at <= this timestamp"),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_admin)
 ):
-    return await svc.list_audit_logs(db, entity_type, limit)
+    return await svc.list_audit_logs(db, entity_type, limit, start_date, end_date)
+
+
+@audit_router.get("/component-types")
+async def get_audit_component_types(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Distinct system component types currently present in the audit log,
+    for populating the filter/export/delete dropdown."""
+    return {"types": await svc.list_audit_log_types(db)}
+
+
+@audit_router.delete("")
+async def clear_audit_logs(
+    entity_type: Optional[str] = Query(None, description="Limit to one component type; omit to target all types"),
+    start_date: Optional[datetime] = Query(None, description="Only clear entries with created_at >= this timestamp"),
+    end_date:   Optional[datetime] = Query(None, description="Only clear entries with created_at <= this timestamp"),
+    confirm: bool = Query(False, description="Must be true to actually delete"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Bulk-delete audit log entries, optionally scoped to a component type
+    and/or date range. With no filters at all, this clears the entire log —
+    requires confirm=true as a safety check."""
+    if not confirm:
+        raise HTTPException(status_code=400, detail="Pass confirm=true to delete audit logs.")
+    deleted = await svc.delete_audit_logs(db, entity_type, start_date, end_date)
+    return {"deleted": deleted}
+
+
+@audit_router.get("/export/excel")
+async def export_audit_logs_excel(
+    entity_type: Optional[str] = Query(None, description="Limit export to one component type"),
+    start_date: Optional[datetime] = Query(None, description="Filter: created_at >= this timestamp"),
+    end_date:   Optional[datetime] = Query(None, description="Filter: created_at <= this timestamp"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Export audit log entries to a downloadable .xlsx, optionally scoped to
+    a single component type and/or date range."""
+    logs = await svc.list_audit_logs(db, entity_type, limit=100000, start_date=start_date, end_date=end_date)
+    content = svc.build_audit_log_excel(logs)
+
+    label = entity_type or "all-components"
+    filename = f"Audit_Log_{label}.xlsx"
+
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

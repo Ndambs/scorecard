@@ -10,6 +10,7 @@ from datetime import date
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from ..models.vmt_uam import VmtUamReport, VmtUamMemberStat
 from ..schemas.vmt_uam import (
     ReportCreate, ReportUpdate, ReportOut, ReportListItem,
@@ -284,13 +285,19 @@ async def create_report(db: AsyncSession, payload: ReportCreate) -> VmtUamReport
         setattr(rep, k, v)
 
     await db.commit()
-    await db.refresh(rep)
-    return rep
+    # Re-fetch with members eagerly loaded (selectinload) instead of a plain
+    # db.refresh(): refresh() only reloads the report's own columns, so a later
+    # access to rep.members would trigger a lazy load outside of an awaited
+    # context and raise MissingGreenlet. Eager-loading here keeps the
+    # relationship populated for response serialization.
+    return await get_report(db, rep.id)
 
 
 async def get_report(db: AsyncSession, report_id: int) -> Optional[VmtUamReport]:
     result = await db.execute(
-        select(VmtUamReport).where(VmtUamReport.id == report_id)
+        select(VmtUamReport)
+        .options(selectinload(VmtUamReport.members))
+        .where(VmtUamReport.id == report_id)
     )
     return result.scalars().first()
 
@@ -333,8 +340,7 @@ async def update_report(
         setattr(rep, k, v)
 
     await db.commit()
-    await db.refresh(rep)
-    return rep
+    return await get_report(db, rep.id)
 
 
 async def clone_report(db: AsyncSession, source_id: int, new_start: date, new_end: date) -> Optional[VmtUamReport]:
@@ -372,8 +378,42 @@ async def publish_report(db: AsyncSession, report_id: int) -> Optional[VmtUamRep
     if rep:
         rep.is_published = True
         await db.commit()
-        await db.refresh(rep)
+        rep = await get_report(db, report_id)
     return rep
+
+
+async def delete_report(db: AsyncSession, report_id: int) -> bool:
+    """Permanently remove a report and its member stats (used by 'Clear logs')."""
+    rep = await get_report(db, report_id)
+    if not rep:
+        return False
+    await db.delete(rep)
+    await db.commit()
+    return True
+
+
+async def delete_reports(db: AsyncSession, report_ids: List[int]) -> int:
+    """Bulk-delete reports by id. Returns the number actually deleted."""
+    deleted = 0
+    for rid in report_ids:
+        if await delete_report(db, rid):
+            deleted += 1
+    return deleted
+
+
+async def list_reports_in_range(
+    db: AsyncSession, start: Optional[date] = None, end: Optional[date] = None
+) -> List[VmtUamReport]:
+    """Fetch reports (with members eagerly loaded) for export, optionally
+    filtered to a period range. Used by the Excel export endpoint."""
+    q = select(VmtUamReport).options(selectinload(VmtUamReport.members))
+    if start:
+        q = q.where(VmtUamReport.period_start >= start)
+    if end:
+        q = q.where(VmtUamReport.period_end <= end)
+    q = q.order_by(VmtUamReport.period_start.asc())
+    result = await db.execute(q)
+    return result.scalars().all()
 
 
 async def get_analytics(db: AsyncSession, limit: int = 12) -> AnalyticsSummary:
@@ -417,3 +457,84 @@ async def get_analytics(db: AsyncSession, limit: int = 12) -> AnalyticsSummary:
         sla_target_met_count=sum(1 for r in reports if r.q_sla_rate >= 90),
         sla_target_miss_count=sum(1 for r in reports if r.q_sla_rate < 90),
     )
+
+
+# ---------------------------------------------------------------------------
+# Excel export ("Clear logs" / export tooling on the History page)
+# ---------------------------------------------------------------------------
+
+def build_excel_export(reports: List[VmtUamReport]) -> bytes:
+    """Builds an .xlsx workbook (Weekly Summary + Member Stats sheets) for the
+    given list of reports. Returns the raw file bytes."""
+    import io
+    import pandas as pd
+
+    summary_rows = []
+    member_rows = []
+
+    for r in reports:
+        summary_rows.append({
+            "Period start": r.period_start,
+            "Period end": r.period_end,
+            "Status": "Published" if r.is_published else "Draft",
+            "Logged": r.q_logged,
+            "Open (SLA)": r.q_open_sla,
+            "Open (breach)": r.q_open_breach,
+            "Open (blank)": r.q_open_blank,
+            "Pending": r.q_pending,
+            "Total open": r.q_total_open,
+            "Closed (SLA)": r.q_closed_sla,
+            "Closed (breach)": r.q_closed_breach,
+            "Closed (blank)": r.q_closed_blank,
+            "Total closed": r.q_total_closed,
+            "SLA rate (%)": r.q_sla_rate,
+            "Resolution efficiency (%)": r.resolution_efficiency,
+            "Throughput ratio (%)": r.throughput_ratio,
+            "Breach rate closed (%)": r.breach_rate_closed,
+            "Pending share (%)": r.pending_share,
+            "Open breach rate (%)": r.open_breach_rate,
+            "Backlog health score": r.backlog_health_score,
+            "Notes": r.notes,
+            "Created by": r.created_by,
+            "Created at": r.created_at,
+        })
+        for m in (r.members or []):
+            member_rows.append({
+                "Period start": r.period_start,
+                "Period end": r.period_end,
+                "Agent": m.agent_name,
+                "Open (SLA)": m.open_sla,
+                "Open (breach)": m.open_breach,
+                "Open (blank)": m.open_blank,
+                "Pending": m.pending,
+                "Closed (SLA)": m.closed_sla,
+                "Closed (breach)": m.closed_breach,
+                "Closed (blank)": m.closed_blank,
+                "Total closed": m.total_closed,
+                "Total open": m.total_open,
+                "Agent SLA rate (%)": m.agent_sla_rate,
+                "Productivity score": m.productivity_score,
+            })
+
+    summary_df = pd.DataFrame(summary_rows)
+    member_df = pd.DataFrame(member_rows)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        (summary_df if not summary_df.empty else pd.DataFrame(
+            columns=["Period start", "Period end"]
+        )).to_excel(writer, index=False, sheet_name="Weekly Summary")
+        (member_df if not member_df.empty else pd.DataFrame(
+            columns=["Period start", "Period end", "Agent"]
+        )).to_excel(writer, index=False, sheet_name="Member Stats")
+
+        for sheet_name, df in (("Weekly Summary", summary_df), ("Member Stats", member_df)):
+            ws = writer.sheets[sheet_name]
+            cols = df.columns if not df.empty else ws[1]
+            for i, col in enumerate(cols, start=1):
+                header = col if isinstance(col, str) else str(col.value or "")
+                width = max(12, min(32, len(header) + 4))
+                ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = width
+
+    buf.seek(0)
+    return buf.read()

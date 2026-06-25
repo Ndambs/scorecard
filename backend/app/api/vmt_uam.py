@@ -4,11 +4,14 @@ Adds POST /api/vmt-uam/parse-pdf on top of the existing 8 endpoints.
 """
 
 from datetime import date
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
+from .auth import require_viewer, require_editor
+from ..models import User
 from ..schemas.vmt_uam import (
     ReportCreate, ReportUpdate, ReportOut, ReportListItem,
     AnalyticsSummary, GeneratedReport,
@@ -126,6 +129,63 @@ async def clone_report(
     if not rep:
         raise HTTPException(status_code=404, detail="Source report not found")
     return rep
+
+
+# ── Delete (single) ───────────────────────────────────────────────────────────
+@router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_editor),
+):
+    ok = await svc.delete_report(db, report_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return None
+
+
+# ── Clear logs (bulk delete, optionally scoped to a period) ───────────────────
+@router.delete("/reports", status_code=status.HTTP_200_OK)
+async def clear_reports(
+    start_date: Optional[date] = Query(None, description="Only clear reports with period_start >= this date"),
+    end_date:   Optional[date] = Query(None, description="Only clear reports with period_end <= this date"),
+    confirm: bool = Query(False, description="Must be true to actually delete"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_editor),
+):
+    """Bulk-clear VMT-UAM logs. With no dates supplied, clears ALL reports —
+    requires confirm=true as a safety check."""
+    if not confirm:
+        raise HTTPException(status_code=400, detail="Pass confirm=true to clear logs.")
+    reports = await svc.list_reports_in_range(db, start_date, end_date)
+    deleted = await svc.delete_reports(db, [r.id for r in reports])
+    return {"deleted": deleted}
+
+
+# ── Export to Excel ────────────────────────────────────────────────────────────
+@router.get("/export/excel")
+async def export_excel(
+    start_date: Optional[date] = Query(None, description="Filter: period_start >= this date"),
+    end_date:   Optional[date] = Query(None, description="Filter: period_end <= this date"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_viewer),
+):
+    """Export VMT-UAM logs (and per-agent breakdown) to a downloadable .xlsx,
+    optionally scoped to a period range."""
+    reports = await svc.list_reports_in_range(db, start_date, end_date)
+    content = svc.build_excel_export(reports)
+
+    if start_date or end_date:
+        label = f"{start_date or 'start'}_to_{end_date or 'end'}"
+    else:
+        label = "all"
+    filename = f"VMT-UAM_Logs_{label}.xlsx"
+
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # ── Publish ───────────────────────────────────────────────────────────────────
