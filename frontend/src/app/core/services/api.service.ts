@@ -163,9 +163,31 @@ export class ApiService {
   }
 
   // Audit
-  getAuditLog(entityType?: string): Observable<any[]> {
-    const params = entityType ? `?entity_type=${entityType}` : '';
+  getAuditLog(entityType?: string, startDate?: string, endDate?: string): Observable<any[]> {
+    const qp: string[] = [];
+    if (entityType) qp.push(`entity_type=${encodeURIComponent(entityType)}`);
+    if (startDate)  qp.push(`start_date=${encodeURIComponent(startDate)}`);
+    if (endDate)    qp.push(`end_date=${encodeURIComponent(endDate)}`);
+    const params = qp.length ? `?${qp.join('&')}` : '';
     return this.http.get<any[]>(`${this.base}/audit${params}`);
+  }
+  getAuditComponentTypes(): Observable<{ types: string[] }> {
+    return this.http.get<{ types: string[] }>(`${this.base}/audit/component-types`);
+  }
+  clearAuditLogs(entityType?: string, startDate?: string, endDate?: string): Observable<{ deleted: number }> {
+    const qp: string[] = ['confirm=true'];
+    if (entityType) qp.push(`entity_type=${encodeURIComponent(entityType)}`);
+    if (startDate)  qp.push(`start_date=${encodeURIComponent(startDate)}`);
+    if (endDate)    qp.push(`end_date=${encodeURIComponent(endDate)}`);
+    return this.http.delete<{ deleted: number }>(`${this.base}/audit?${qp.join('&')}`);
+  }
+  exportAuditLogs(entityType?: string, startDate?: string, endDate?: string): Observable<Blob> {
+    const qp: string[] = [];
+    if (entityType) qp.push(`entity_type=${encodeURIComponent(entityType)}`);
+    if (startDate)  qp.push(`start_date=${encodeURIComponent(startDate)}`);
+    if (endDate)    qp.push(`end_date=${encodeURIComponent(endDate)}`);
+    const params = qp.length ? `?${qp.join('&')}` : '';
+    return this.http.get(`${this.base}/audit/export/excel${params}`, { responseType: 'blob' });
   }
 
   // Weekly Reports

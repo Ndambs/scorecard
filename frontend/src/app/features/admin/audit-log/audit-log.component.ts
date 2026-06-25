@@ -10,15 +10,42 @@ import { ApiService } from '../../../core/services/api.service';
   template: `
     <div class="page">
       <div class="page-header">
-        <div><h1>Audit Log</h1><p>Full change history for all scorecard edits</p></div>
+        <div><h1>Audit Log</h1><p>Full change history for all system components</p></div>
         <div class="filter-row">
           <select [(ngModel)]="filterType" (change)="load()" class="fi-sm">
-            <option value="">All types</option>
-            <option value="scorecard">Scorecard</option>
-            <option value="kpi">KPI</option>
-            <option value="action_item">Action Item</option>
-            <option value="section">Section</option>
+            <option value="">All component types</option>
+            @for (t of componentTypes(); track t) {
+              <option [value]="t">{{ labelFor(t) }}</option>
+            }
           </select>
+        </div>
+      </div>
+
+      @if (alert()) {
+        <div class="alert" [class]="'alert-' + alert()!.type">{{ alert()!.text }}</div>
+      }
+
+      <!-- Export & delete-logs panel -->
+      <div class="tools-card">
+        <div class="tools-row">
+          <div class="field">
+            <label>From</label>
+            <input type="date" [(ngModel)]="rangeStart" />
+          </div>
+          <div class="field">
+            <label>To</label>
+            <input type="date" [(ngModel)]="rangeEnd" />
+          </div>
+          <button class="btn" (click)="exportExcel()" [disabled]="exporting()">
+            {{ exporting() ? 'Exporting…' : 'Export to Excel' }}
+          </button>
+          <button class="btn btn-danger" (click)="confirmClear()" [disabled]="clearing()">
+            {{ clearing() ? 'Deleting…' : 'Delete logs' }}
+          </button>
+        </div>
+        <div class="tools-hint">
+          Scoped to the component type selected above ("All component types" applies to every type).
+          Leave both dates blank to cover the full history. Deleting logs is permanent.
         </div>
       </div>
 
@@ -83,6 +110,21 @@ import { ApiService } from '../../../core/services/api.service';
       border-radius:6px; padding:10px; font-size:11px; color:#374151;
       overflow:auto; max-height:160px; white-space:pre-wrap; }
     .empty { text-align:center; color:#9ca3af; padding:40px; }
+    .alert { padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+    .alert-success { background:#dcfce7; color:#166534; }
+    .alert-danger  { background:#fee2e2; color:#991b1b; }
+    .tools-card { background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:16px 18px; margin-bottom:20px; }
+    .tools-row { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+    .field { display:flex; flex-direction:column; gap:4px; }
+    .field label { font-size:11px; color:#6b7280; }
+    .field input { padding:7px 10px; border:1.5px solid #e5e7eb; border-radius:7px; font-size:13px; }
+    .btn { padding:8px 16px; border:1.5px solid #e5e7eb; border-radius:8px; cursor:pointer;
+      font-size:13px; font-family:inherit; background:#fff; }
+    .btn:hover { background:#f9fafb; }
+    .btn:disabled { opacity:.55; cursor:default; }
+    .btn-danger { border-color:#fca5a5; color:#991b1b; }
+    .btn-danger:hover { background:#fef2f2; }
+    .tools-hint { font-size:11.5px; color:#9ca3af; margin-top:10px; }
   `]
 })
 export class AuditLogComponent implements OnInit {
@@ -91,13 +133,76 @@ export class AuditLogComponent implements OnInit {
   filterType = '';
   expanded = signal('');
 
-  ngOnInit() { this.load(); }
+  componentTypes = signal<string[]>(['scorecard', 'kpi', 'action_item', 'section']);
+  rangeStart = '';
+  rangeEnd = '';
+  exporting = signal(false);
+  clearing = signal(false);
+  alert = signal<{ type: string; text: string } | null>(null);
+
+  ngOnInit() {
+    this.load();
+    this.api.getAuditComponentTypes().subscribe({
+      next: (res) => {
+        if (res?.types?.length) this.componentTypes.set(res.types);
+      },
+      error: () => { /* keep the fallback list */ },
+    });
+  }
 
   load() {
-    this.api.getAuditLog(this.filterType || undefined).subscribe(l => this.logs.set(l));
+    this.api.getAuditLog(this.filterType || undefined, this.rangeStart || undefined, this.rangeEnd || undefined)
+      .subscribe(l => this.logs.set(l));
   }
 
   toggleDetail(id: string) {
     this.expanded.set(this.expanded() === id ? '' : id);
+  }
+
+  labelFor(type: string): string {
+    return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  exportExcel(): void {
+    this.exporting.set(true);
+    this.api.exportAuditLogs(this.filterType || undefined, this.rangeStart || undefined, this.rangeEnd || undefined)
+      .subscribe({
+        next: (blob) => {
+          this.exporting.set(false);
+          const label = this.filterType || 'all-components';
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Audit_Log_${label}.xlsx`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: () => {
+          this.exporting.set(false);
+          this.alert.set({ type: 'danger', text: 'Export failed.' });
+        },
+      });
+  }
+
+  confirmClear(): void {
+    const typeLabel = this.filterType ? `"${this.labelFor(this.filterType)}"` : 'ALL component types';
+    const rangeLabel = this.rangeStart || this.rangeEnd
+      ? ` between ${this.rangeStart || 'the earliest entry'} and ${this.rangeEnd || 'the latest entry'}`
+      : ' across the full history';
+    if (!confirm(`This will permanently delete audit log entries for ${typeLabel}${rangeLabel}. Continue?`)) return;
+
+    this.clearing.set(true);
+    this.api.clearAuditLogs(this.filterType || undefined, this.rangeStart || undefined, this.rangeEnd || undefined)
+      .subscribe({
+        next: (res) => {
+          this.clearing.set(false);
+          this.alert.set({ type: 'success', text: `Deleted ${res.deleted} audit log entr${res.deleted === 1 ? 'y' : 'ies'}.` });
+          this.load();
+        },
+        error: () => {
+          this.clearing.set(false);
+          this.alert.set({ type: 'danger', text: 'Could not delete audit logs.' });
+        },
+      });
   }
 }
